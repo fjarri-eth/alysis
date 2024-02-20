@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import time
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import rlp
 from eth.chains.base import MiningChain
@@ -65,7 +65,7 @@ class PyEVMBackend:
 
         blank_root_hash = keccak(rlp.encode(b""))
 
-        genesis_params: dict[str, int | BlockNumber | bytes | Address | Hash32 | None] = {
+        genesis_params: dict[str, Union[int, BlockNumber, bytes, Address, Hash32, None]] = {
             "coinbase": ZERO_ADDRESS,
             "difficulty": POST_MERGE_DIFFICULTY,
             "extra_data": b"",
@@ -189,7 +189,7 @@ class PyEVMBackend:
         block = self._get_block_by_number(block)
         return self.chain.get_vm(at_header=block.header)
 
-    def get_transaction_receipt(self, transaction_hash: bytes) -> TransactionReceipt | None:
+    def get_transaction_receipt(self, transaction_hash: bytes) -> Optional[TransactionReceipt]:
         block, transaction, transaction_index = self._get_transaction_by_hash(
             transaction_hash,
         )

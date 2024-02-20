@@ -16,7 +16,7 @@ class BlockLabel(Enum):
     EARLIEST = "earliest"
 
 
-Block = int | BlockLabel
+Block = Union[int, BlockLabel]
 
 
 @dataclass

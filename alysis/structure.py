@@ -1,7 +1,6 @@
 import typing
 from dataclasses import MISSING, dataclass, field, fields, is_dataclass
 from enum import Enum
-from types import UnionType
 from typing import Any, Iterable, List, Mapping, NewType, Optional, Tuple, Type, TypeVar, Union
 
 from exceptiongroup import ExceptionGroup
@@ -134,7 +133,6 @@ class Structurer:
                 tuple: structure_tuple,
                 Tuple: structure_tuple,
                 Union: structure_union,
-                UnionType: structure_union,
             },
             field_name_hook or (lambda x: x),
         )
