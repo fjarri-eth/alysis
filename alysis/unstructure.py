@@ -1,11 +1,15 @@
 from dataclasses import fields, is_dataclass
 
 
-def unstructure_list(unstructure, obj):
-    return [unstructure(item) for item in obj]
+class UnstructuringError(Exception):
+    pass
 
 
-def unstructure_none(unstructure, obj):
+def unstructure_list(unstructurer: "Unstructurer", obj):
+    return [unstructurer.unstructure(item) for item in obj]
+
+
+def unstructure_none(_unstructurer: "Unstructurer", _obj):
     return None
 
 
@@ -33,6 +37,6 @@ class Unstructurer:
             return result
 
         if type(obj) in self._hooks:
-            return self._hooks[type(obj)](self.unstructure, obj)
-        else:
-            raise Exception(f"No hooks registered to unstructure {type(obj)}")
+            return self._hooks[type(obj)](self, obj)
+
+        raise UnstructuringError(f"No hooks registered to unstructure {type(obj)}")

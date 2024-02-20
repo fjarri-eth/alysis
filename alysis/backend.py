@@ -142,7 +142,9 @@ class PyEVMBackend:
     def get_block_by_number(self, block: Block, *, with_transactions: bool) -> BlockInfo:
         block = self._get_block_by_number(block)
         is_pending = block.number == self.chain.get_block().number
-        return BlockInfo.from_pyevm(block, with_transactions, is_pending)
+        return BlockInfo.from_pyevm(
+            block, with_transactions=with_transactions, is_pending=is_pending
+        )
 
     def _get_block_by_hash(self, block_hash: bytes) -> BlockAPI:
         try:
@@ -158,7 +160,9 @@ class PyEVMBackend:
     def get_block_by_hash(self, block_hash: bytes, *, with_transactions: bool) -> BlockInfo:
         block = self._get_block_by_hash(block_hash)
         is_pending = block.number == self.chain.get_block().number
-        return BlockInfo.from_pyevm(block, with_transactions, is_pending)
+        return BlockInfo.from_pyevm(
+            block, with_transactions=with_transactions, is_pending=is_pending
+        )
 
     def _get_transaction_by_hash(
         self, transaction_hash: bytes
@@ -183,7 +187,9 @@ class PyEVMBackend:
             transaction_hash,
         )
         is_pending = block.number == self.chain.get_block().number
-        return TransactionInfo.from_pyevm(block, transaction, transaction_index, is_pending)
+        return TransactionInfo.from_pyevm(
+            block, transaction, transaction_index, is_pending=is_pending
+        )
 
     def _get_vm_for_block_number(self, block: Block) -> VirtualMachineAPI:
         block = self._get_block_by_number(block)

@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from enum import Enum
-from typing import Iterator, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Iterator, Mapping, Optional, Sequence, Tuple, Union
 
 from .exceptions import BlockNotFound, TransactionFailed, TransactionNotFound, TransactionReverted
 from .node import Node

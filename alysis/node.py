@@ -48,6 +48,10 @@ class LogFilter:
         self._addresses = addresses
         self._topics = params.topics
 
+    def block_number_range(self, current_block_number: int) -> range:
+        to_block = self._to_block if self._to_block is not None else current_block_number
+        return range(self._from_block, to_block + 1)
+
     def matches(self, entry: LogEntry) -> bool:
         if entry.block_number < self._from_block:
             return False
@@ -67,10 +71,7 @@ class LogFilter:
             if topics is None:
                 continue
 
-            if not isinstance(topics, list):
-                filter_topics = [topics]
-            else:
-                filter_topics = topics
+            filter_topics = topics if isinstance(topics, list) else [topics]
 
             for filter_topic in filter_topics:
                 if filter_topic == logged_topic:
@@ -302,10 +303,7 @@ class Node:
         ).number
 
         # Enumerate the blocks in the block range to find all log entries which match.
-        to_block = (
-            log_filter._to_block if log_filter._to_block is not None else current_block_number
-        )
-        for block_number in range(log_filter._from_block, to_block + 1):
+        for block_number in log_filter.block_number_range(current_block_number):
             block = self.get_block_by_number(block_number, with_transactions=False)
             for transaction_hash in block.transactions:
                 # TODO: only need log entries here

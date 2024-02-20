@@ -4,20 +4,13 @@ from typing import List, Optional, Sequence, Union
 import rlp
 from eth.abc import (
     BlockAPI,
-    BlockHeaderAPI,
     LogAPI,
     ReceiptAPI,
-    SignedTransactionAPI,
     TransactionFieldsAPI,
-    VirtualMachineAPI,
 )
-from eth.rlp.transactions import BaseTransaction
 from eth.vm.forks.berlin.transactions import TypedTransaction
 from eth_typing import Address, Hash32
-from eth_utils import keccak, to_canonical_address, to_int
-from eth_utils.toolz import merge
-
-from .exceptions import ValidationError
+from eth_utils import keccak, to_canonical_address
 
 
 @dataclass
@@ -43,14 +36,16 @@ class BlockInfo:
     transactions: Union[List["TransactionInfo"], List[Hash32]]
     uncles: List[Hash32]
 
-    def is_pending(self):
+    def is_pending(self) -> bool:
         return self.hash is None
 
     @classmethod
-    def from_pyevm(cls, block: BlockAPI, with_transactions: bool, is_pending: bool):
+    def from_pyevm(
+        cls, block: BlockAPI, *, with_transactions: bool, is_pending: bool
+    ) -> "BlockInfo":
         if with_transactions:
             transactions = [
-                TransactionInfo.from_pyevm(block, transaction, index, is_pending)
+                TransactionInfo.from_pyevm(block, transaction, index, is_pending=is_pending)
                 for index, transaction in enumerate(block.transactions)
             ]
         else:
@@ -112,16 +107,17 @@ class TransactionInfo:
         block: BlockAPI,
         transaction: TransactionFieldsAPI,
         transaction_index: int,
+        *,
         is_pending: bool,
-    ):
+    ) -> "TransactionInfo":
         txn_type = _extract_transaction_type(transaction)
         return cls(
             chain_id=transaction.chain_id,
             block_hash=None if is_pending else block.hash,
             hash=transaction.hash,
             nonce=transaction.nonce,
-            # While the docs for major provider say that `number` is `null` for pending transactions,
-            # it actually isn't in their return values.
+            # While the docs for major provider say that `number` is `null`
+            # for pending transactions, it actually isn't in their return values.
             block_number=block.number,
             transaction_index=None if is_pending else transaction_index,
             from_=transaction.sender,
@@ -168,7 +164,7 @@ class TransactionReceipt:
         transaction: TransactionFieldsAPI,
         receipts: Sequence[ReceiptAPI],
         transaction_index: int,
-    ):
+    ) -> "TransactionReceipt":
         txn_type = _extract_transaction_type(transaction)
         receipt = receipts[transaction_index]
 
@@ -226,7 +222,7 @@ class LogEntry:
         transaction_index: int,
         log: LogAPI,
         log_index: int,
-    ):
+    ) -> "LogEntry":
         return cls(
             address=log.address,
             block_hash=block.hash,
@@ -240,27 +236,29 @@ class LogEntry:
         )
 
 
-def pad32(value):
+def pad32(value: bytes) -> bytes:
     return value.rjust(32, b"\x00")
 
 
-def generate_contract_address(address, nonce):
+def generate_contract_address(address: Address, nonce: int) -> Address:
     next_account_hash = keccak(rlp.encode([address, nonce]))
     return to_canonical_address(next_account_hash[-20:])
 
 
-def _extract_transaction_type(transaction):
+def _extract_transaction_type(transaction: TransactionFieldsAPI) -> int:
     if isinstance(transaction, TypedTransaction):
         try:
-            transaction.gas_price
-            return 1
+            _ = transaction.gas_price
         except AttributeError:
             return 2
+        return 1
     # legacy transactions being '0x0' taken from current geth version v1.10.10
     return 0
 
 
-def _calculate_effective_gas_price(transaction, block, transaction_type):
+def _calculate_effective_gas_price(
+    transaction: TransactionFieldsAPI, block: BlockAPI, transaction_type: int
+) -> int:
     return (
         min(
             transaction.max_fee_per_gas,

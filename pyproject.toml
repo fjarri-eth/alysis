@@ -105,6 +105,11 @@ ignore = [
     "PLR0913",
     # Conflicts with the formatter, produces a warning
     "ISC001",
+    # A ternary operator is a stylistic choice,
+    # and an explicit condition is easier for coverage checking.
+    "SIM108",
+    # Too many false positives. Sometimes a plain value is needed.
+    "PLR2004",
 ]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.

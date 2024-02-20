@@ -1,33 +1,34 @@
 import typing
-from dataclasses import MISSING, dataclass, field, fields, is_dataclass
-from enum import Enum
-from typing import Any, Iterable, List, Mapping, NewType, Optional, Tuple, Type, TypeVar, Union
+from dataclasses import MISSING, fields, is_dataclass
+from typing import Any, Callable, List, Optional, Tuple, Type, TypeVar, Union
 
 from exceptiongroup import ExceptionGroup
 
 
 def structure_none(val: Any) -> None:
-    if val is None:
-        return None
-    raise Exception(f"The value is not `None`")
+    if val is not None:
+        raise ValueError("The value is not `None`")
 
 
-def structure_union(structure, path, args: Tuple[Any, ...], val: Any) -> Any:
+def structure_union(
+    structurer: "Structurer", path: List[Union[str, int]], args: Tuple[Any, ...], val: Any
+) -> Any:
     exceptions = []
     for arg in args:
         try:
-            result = structure(path, arg, val)
+            result = structurer._structure(path, arg, val)
             break
         except (StructuringError, StructuringErrorGroup) as exc:
             exceptions.append(exc)
     else:
-        print("raising from", path)
         raise StructuringErrorGroup(path, f"Could not structure into any of {args}", exceptions)
 
     return result
 
 
-def structure_tuple(structure, path, args: Tuple[Any, ...], val: Any) -> Any:
+def structure_tuple(
+    structurer: "Structurer", path: List[Union[str, int]], args: Tuple[Any, ...], val: Any
+) -> Any:
     # Tuple[()] is supposed to represent an empty tuple. Mypy knows this,
     # but in Python < 3.11 `get_args(Tuple[()])` returns `((),)` instead of `()` as it should.
     # Fixing it here.
@@ -35,13 +36,13 @@ def structure_tuple(structure, path, args: Tuple[Any, ...], val: Any) -> Any:
         args = ()
 
     if not isinstance(val, (list, tuple)):
-        raise Exception("Can only structure a tuple or a list into a tuple generic")
+        raise TypeError("Can only structure a tuple or a list into a tuple generic")
     if len(val) < len(args):
-        raise Exception(
+        raise ValueError(
             f"Not enough elements to structure into a tuple: got {len(val)}, need {len(args)}"
         )
     if len(val) > len(args):
-        raise Exception(
+        raise ValueError(
             f"Too many elements to structure into a tuple: got {len(val)}, need {len(args)}"
         )
 
@@ -49,8 +50,8 @@ def structure_tuple(structure, path, args: Tuple[Any, ...], val: Any) -> Any:
     exceptions = []
     for index, (item, tp) in enumerate(zip(val, args)):
         try:
-            results.append(structure(path + [index], tp, item))
-        except (StructuringError, StructuringErrorGroup) as exc:
+            results.append(structurer._structure([*path, index], tp, item))
+        except (StructuringError, StructuringErrorGroup) as exc:  # noqa: PERF203
             exceptions.append(exc)
 
     if exceptions:
@@ -59,29 +60,37 @@ def structure_tuple(structure, path, args: Tuple[Any, ...], val: Any) -> Any:
     return tuple(results)
 
 
-def structure_list(structure, path, args: Tuple[Any, ...], val: Any) -> Any:
+def structure_list(
+    structurer: "Structurer", path: List[Union[str, int]], args: Tuple[Any, ...], val: Any
+) -> Any:
     if not isinstance(val, (list, tuple)):
-        raise Exception("Can only structure a tuple or a list into a list generic")
-    return [structure(path + [index], args[0], item) for (index, item) in enumerate(val)]
+        raise TypeError("Can only structure a tuple or a list into a list generic")
+    return [
+        structurer._structure([*path, index], args[0], item) for (index, item) in enumerate(val)
+    ]
 
 
 class StructuringError(Exception):
     @classmethod
-    def wrap(cls, path, structure_into, exc):
+    def wrap(
+        cls, path: List[Union[int, str]], structure_into: Any, exc: Exception
+    ) -> "StructuringError":
         return cls(path, f"Failed to structure into {structure_into}: {exc}")
 
-    def __init__(self, path, msg):
+    def __init__(self, path: List[Union[int, str]], msg: str):
         super().__init__(msg)
         self.path = path
 
-    def path_str(self):
+    def path_str(self) -> str:
         return ".".join(str(item) for item in self.path) if self.path else "<root>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Failed to structure at `{self.path_str()}`: {self.args[0]}"
 
 
-def collect_messages(level, exc):
+def collect_messages(
+    level: int, exc: Union[StructuringError, "StructuringErrorGroup"]
+) -> List[Tuple[int, str, str]]:
     if isinstance(exc, StructuringError):
         exceptions = []
         message = exc.args[0]
@@ -89,25 +98,28 @@ def collect_messages(level, exc):
         exceptions = exc.exceptions
         message = exc.message
 
-    return [(level, exc.path_str(), message)] + sum(
-        (collect_messages(level + 1, exc) for exc in exceptions), []
-    )
+    return [
+        (level, exc.path_str(), message),
+        *(collect_messages(level + 1, exc) for exc in exceptions),
+    ]
 
 
 class StructuringErrorGroup(ExceptionGroup):
     @classmethod
-    def wrap(cls, path, structure_into, excs):
+    def wrap(
+        cls, path: List[Union[int, str]], structure_into: Any, excs: List[StructuringError]
+    ) -> "StructuringErrorGroup":
         return cls(path, f"Failed to structure into {structure_into}", excs)
 
-    def __new__(cls, path, msg, excs):
+    def __new__(cls, path: List[Union[int, str]], msg: str, excs: List[StructuringError]):
         self = super().__new__(StructuringErrorGroup, msg, excs)
         self.path = path
         return self
 
-    def path_str(self):
+    def path_str(self) -> str:
         return ".".join(str(item) for item in self.path) if self.path else "<root>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         messages = collect_messages(0, self)
 
         s = "Failed to structure:"
@@ -122,7 +134,9 @@ _T = TypeVar("_T")
 
 class Structurer:
     @classmethod
-    def with_defaults(cls, hooks, field_name_hook=None):
+    def with_defaults(
+        cls, hooks, field_name_hook: Optional[Callable[[str], str]] = None
+    ) -> "Structurer":
         all_hooks = {type(None): structure_none}
         all_hooks.update(hooks)
 
@@ -151,7 +165,7 @@ class Structurer:
             if obj_name in obj:
                 try:
                     results[field.name] = self._structure(
-                        path + [field.name], field.type, obj[obj_name]
+                        [*path, field.name], field.type, obj[obj_name]
                     )
                 except StructuringError as exc:
                     exceptions.append(exc)
@@ -181,16 +195,15 @@ class Structurer:
         for i, field in enumerate(struct_fields):
             if i < len(obj):
                 try:
-                    results[field.name] = self._structure(path + [field.name], field.type, obj[i])
+                    results[field.name] = self._structure([*path, field.name], field.type, obj[i])
                 except StructuringError as exc:
                     exceptions.append(exc)
+            elif field.default is not MISSING:
+                results[field.name] = field.default
             else:
-                if field.default is not MISSING:
-                    results[field.name] = field.default
-                else:
-                    exceptions.append(
-                        StructuringError(path, f"Missing positional argument {field.name}")
-                    )
+                exceptions.append(
+                    StructuringError(path, f"Missing positional argument {field.name}")
+                )
 
         if exceptions:
             raise StructuringErrorGroup.wrap(path, structure_into, exceptions)
@@ -202,7 +215,7 @@ class Structurer:
             hook = self._hooks[structure_into]
             try:
                 return hook(obj)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 raise StructuringError.wrap(path, structure_into, exc) from exc
 
         if is_dataclass(structure_into):
@@ -221,10 +234,10 @@ class Structurer:
             args = typing.get_args(structure_into)
             hook = self._generic_hooks[origin]
             try:
-                return hook(self._structure, path, args, obj)
+                return hook(self, path, args, obj)
             except (StructuringError, StructuringErrorGroup):
                 raise
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 raise StructuringError.wrap(path, structure_into, exc) from exc
 
         raise StructuringError(path, f"No hooks registered to structure into {structure_into}")

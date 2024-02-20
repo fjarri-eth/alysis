@@ -51,58 +51,57 @@ class EstimateGas:
 
 def structure_address(val: Any) -> Address:
     if not isinstance(val, str) or not val.startswith("0x"):
-        raise Exception("The value must be a 0x-prefixed hex-encoded data")
+        raise ValueError("The value must be a 0x-prefixed hex-encoded data")
     res = bytes.fromhex(val[2:])
-    assert len(res) == 20, "The value must encode 20 bytes"
+    if len(res) != 20:
+        raise ValueError("The value must encode 20 bytes")
     return Address(res)
 
 
 def structure_hash32(val: Any) -> Hash32:
     if not isinstance(val, str) or not val.startswith("0x"):
-        raise Exception("The value must be a 0x-prefixed hex-encoded data")
+        raise ValueError("The value must be a 0x-prefixed hex-encoded data")
     res = bytes.fromhex(val[2:])
-    assert len(res) == 32, "The value must encode 30 bytes"
+    if len(res) != 32:
+        raise ValueError("The value must encode 30 bytes")
     return Hash32(res)
 
 
 def structure_bytes(val: Any) -> bytes:
     if not isinstance(val, str) or not val.startswith("0x"):
-        raise Exception("The value must be a 0x-prefixed hex-encoded data")
+        raise ValueError("The value must be a 0x-prefixed hex-encoded data")
     return bytes.fromhex(val[2:])
 
 
 def structure_int(val: Any) -> int:
     if not isinstance(val, str) or not val.startswith("0x"):
-        raise Exception("The value must be a 0x-prefixed hex-encoded integer")
+        raise ValueError("The value must be a 0x-prefixed hex-encoded integer")
     return int(val, 0)
 
 
 def structure_block(val: Any) -> BlockLabel:
-    assert isinstance(val, str)
-    try:
-        return BlockLabel(val)
-    except ValueError as exc:
-        raise Exception(f"{repr(val)} is not a known block label") from exc
+    return BlockLabel(val)
 
 
 def structure_bool(val: Any) -> bool:
-    assert isinstance(val, bool)
+    if not isinstance(val, bool):
+        raise TypeError("Expected a boolean value")
     return val
 
 
-def unstructure_int_as_hex(unstructure, obj: int):
+def unstructure_int_as_hex(_unstructurer: Unstructurer, obj: int) -> str:
     return hex(obj)
 
 
-def unstructure_bytes_as_hex(unstructure, obj: bytes):
+def unstructure_bytes_as_hex(_unstructurer: Unstructurer, obj: bytes) -> str:
     return "0x" + obj.hex()
 
 
-def unstructure_bool(unstructure, obj):
+def unstructure_bool(_unstructurer: Unstructurer, obj: bool) -> bool:  # noqa: FBT001
     return obj
 
 
-def to_camel_case(name):
+def to_camel_case(name: str) -> str:
     if name.endswith("_"):
         name = name[:-1]
     parts = name.split("_")
