@@ -1,6 +1,6 @@
 [project]
 name = "alysis"
-version = "0.1.0"
+version = "0.1.1"
 description = "Ethereum testerchain"
 authors = [
     {name = "Bogdan Opanchuk", email = "bogdan@opanchuk.net"},
