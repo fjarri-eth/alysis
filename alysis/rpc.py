@@ -38,7 +38,7 @@ class RPCErrorCode(Enum):
 
 
 class RPCError(Exception):
-    def __init__(self, code: RPCErrorCode, message: str, data: Optional[bytes] = None):
+    def __init__(self, code: RPCErrorCode, message: str, data: Optional[str] = None):
         super().__init__(f"Error {code}: {message}")
         self.code = code
         self.message = message
@@ -78,7 +78,7 @@ class RPCNode:
     def __init__(self, node: Node):
         self.node = node
 
-    def rpc(self, method_name: str, *params):
+    def rpc(self, method_name: str, *params: JSON) -> JSON:
         methods = dict(
             net_version=self._net_version,
             eth_chainId=self._eth_chain_id,
