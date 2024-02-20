@@ -1,10 +1,11 @@
 from contextlib import contextmanager
 from enum import Enum
-from typing import Iterator, Mapping, Optional, Sequence, Tuple, Union
+from typing import Iterator, Mapping, Optional, Sequence, Tuple, Union, cast
 
 from .exceptions import BlockNotFound, TransactionFailed, TransactionNotFound, TransactionReverted
 from .node import Node
 from .schema import (
+    JSON,
     Address,
     Block,
     EstimateGasParams,
@@ -14,8 +15,6 @@ from .schema import (
     structure,
     unstructure,
 )
-
-JSON = Union[bool, int, float, str, None, Sequence["JSON"], Mapping[str, "JSON"]]
 
 
 class RPCErrorCode(Enum):
@@ -66,7 +65,7 @@ def into_rpc_errors() -> Iterator[None]:
         else:
             error = RPCErrorCode.EXECUTION_ERROR
             message = "execution reverted"
-            data = unstructure(reason_data)
+            data = cast(str, unstructure(reason_data))
 
         raise RPCError(error, message, data) from exc
 

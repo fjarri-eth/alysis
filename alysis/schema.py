@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, List, Optional, Union
+from typing import Any, List, Mapping, Optional, Sequence, Type, TypeVar, Union, cast
 
 from eth_typing import Address, Hash32
 
@@ -63,7 +63,7 @@ class TransactionInfo:
     input: bytes
     nonce: int
     to: Address
-    transaction_index: int
+    transaction_index: Optional[int]
     type: int
     value: int
     v: int
@@ -107,7 +107,7 @@ class BlockInfo:
     number: int
     hash: Optional[Hash32]
     parent_hash: Hash32
-    nonce: Optional[int]  # TODO: technically, 8 bytes
+    nonce: Optional[bytes]  # TODO: technically, 8 bytes
     sha3_uncles: Hash32
     logs_bloom: Optional[bytes]  # TODO: 256 bytes or None if it's a pending block
     transactions_root: Hash32
@@ -115,12 +115,12 @@ class BlockInfo:
     receipts_root: Hash32
     miner: Optional[Address]
     difficulty: int
-    total_difficulty: int
+    total_difficulty: Optional[int]
     extra_data: bytes
     size: int
     gas_limit: int
     gas_used: int
-    base_fee_per_gas: int
+    base_fee_per_gas: Optional[int]
     timestamp: int
     transactions: Union[List[TransactionInfo], List[Hash32]]
     uncles: List[Hash32]
@@ -210,5 +210,16 @@ UNSTRUCTURER = Unstructurer.with_defaults(
 )
 
 
-structure = STRUCTURER.structure
-unstructure = UNSTRUCTURER.unstructure
+JSON = Union[bool, int, float, str, None, Sequence["JSON"], Mapping[str, "JSON"]]
+
+
+_T = TypeVar("_T")
+
+
+def structure(structure_into: Type[_T], obj: JSON) -> _T:
+    return STRUCTURER.structure(structure_into, obj)
+
+
+def unstructure(obj: Any) -> JSON:
+    # The result is `JSON` by virtue of the hooks we defined
+    return cast(JSON, UNSTRUCTURER.unstructure(obj))
