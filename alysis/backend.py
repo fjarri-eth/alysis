@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import os
 import time
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union, cast
 
 import rlp
 from eth.abc import (
     BlockAPI,
-    LogAPI,
-    ReceiptAPI,
     TransactionFieldsAPI,
 )
 from eth.chains.base import MiningChain
@@ -50,6 +48,8 @@ if TYPE_CHECKING:
     from eth.abc import (
         BlockAPI,
         BlockHeaderAPI,
+        LogAPI,
+        ReceiptAPI,
         SignedTransactionAPI,
         TransactionFieldsAPI,
         VirtualMachineAPI,
@@ -126,9 +126,12 @@ class PyEVMBackend:
         self.chain.header = self.chain.header.copy(timestamp=(to_timestamp - 1))
         self.mine_block()
 
-    def mine_block(self) -> BlockAPI:
+    def get_current_timestamp(self) -> int:
+        return self.chain.header.timestamp
+
+    def mine_block(self) -> Hash32:
         # ParisVM and forward, generate a random `mix_hash` to simulate the `prevrandao` value.
-        return self.chain.mine_block(coinbase=ZERO_ADDRESS, mix_hash=os.urandom(32))
+        return self.chain.mine_block(coinbase=ZERO_ADDRESS, mix_hash=os.urandom(32)).hash
 
     def _get_block_by_number(self, block: Block) -> BlockAPI:
         if block in (BlockLabel.LATEST, BlockLabel.SAFE, BlockLabel.FINALIZED):
@@ -153,6 +156,31 @@ class PyEVMBackend:
 
         # fallback
         raise BlockNotFound(f"No block found for block number: {block}")
+
+    def _get_log_entries(self, block: BlockAPI) -> List[LogEntry]:
+        receipts = block.get_receipts(self.chain.chaindb)
+        entries = []
+        for transaction_index, transaction in enumerate(block.transactions):
+            receipt = receipts[transaction_index]
+            for log_index, log in enumerate(receipt.logs):
+                entries.append(
+                    make_log_entry(block, transaction, transaction_index, log, log_index)
+                )
+        return entries
+
+    def get_log_entries_by_block_hash(self, block_hash: Hash32) -> List[LogEntry]:
+        block = self._get_block_by_hash(block_hash)
+        return self._get_log_entries(block)
+
+    def get_log_entries_by_block_number(self, block: Block) -> List[LogEntry]:
+        block = self._get_block_by_number(block)
+        return self._get_log_entries(block)
+
+    def get_latest_block_hash(self) -> Hash32:
+        return self._get_block_by_number(BlockLabel.LATEST).hash
+
+    def get_latest_block_number(self) -> Hash32:
+        return self._get_block_by_number(BlockLabel.LATEST).number
 
     def get_block_by_number(self, block: Block, *, with_transactions: bool) -> BlockInfo:
         block = self._get_block_by_number(block)

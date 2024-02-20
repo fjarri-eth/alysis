@@ -29,7 +29,6 @@ class LogFilter:
         if isinstance(params.from_block, int):
             from_block = params.from_block
         elif params.from_block in (BlockLabel.LATEST, BlockLabel.SAFE, BlockLabel.FINALIZED):
-            # TODO: don't need the whole block here
             from_block = current_block_number
         elif params.from_block == BlockLabel.EARLIEST:
             from_block = 0
@@ -121,13 +120,8 @@ class Node:
         self._snapshots = {}
 
     def advance_time(self, to_timestamp: int) -> None:
-        # make sure we are not traveling back in time as this is not possible.
-        # TODO: don't need the whole block here
-        current_timestamp = self.get_block_by_number(
-            BlockLabel.PENDING, with_transactions=False
-        ).timestamp
+        current_timestamp = self.backend.get_current_timestamp()
         if to_timestamp == current_timestamp:
-            # no change, return immediately
             return
         if to_timestamp < current_timestamp:
             raise ValidationError(
@@ -144,25 +138,21 @@ class Node:
         self._auto_mine_transactions = False
 
     def mine_block(self) -> None:
-        block = self.backend.mine_block()
+        block_hash = self.backend.mine_block()
 
         # feed the block hash to any block filters
         for block_filter in self._block_filters.values():
-            block_filter.append(block.hash)
+            block_filter.append(block_hash)
 
         for filter_id, log_filter in self._log_filters.items():
-            for transaction in block.transactions:
-                # TODO: only need log entries here
-                receipt = self.backend.get_transaction_receipt(transaction.hash)
-                for log_entry in receipt.logs:
-                    if log_filter.matches(log_entry):
-                        self._log_filter_entries[filter_id].append(log_entry)
+            log_entries = self.backend.get_log_entries_by_block_hash(block_hash)
+            for log_entry in log_entries:
+                if log_filter.matches(log_entry):
+                    self._log_filter_entries[filter_id].append(log_entry)
 
     def take_snapshot(self) -> int:
-        # TODO: don't need the whole block here
-        block = self.backend.get_block_by_number(BlockLabel.LATEST, with_transactions=False)
         snapshot_id = next(self._snapshot_counter)
-        self._snapshots[snapshot_id] = block.hash
+        self._snapshots[snapshot_id] = self.backend.get_latest_block_hash()
         return snapshot_id
 
     def revert_to_snapshot(self, snapshot_id: int) -> None:
@@ -191,9 +181,7 @@ class Node:
         return block_info.base_fee_per_gas + 10**9
 
     def block_number(self) -> int:
-        # TODO: don't need the whole block here
-        block = self.backend.get_block_by_number(BlockLabel.LATEST, with_transactions=False)
-        return block.number
+        return self.backend.get_latest_block_number()
 
     def get_balance(self, address: Address, block: Block) -> int:
         return self.backend.get_balance(address, block)
@@ -262,10 +250,7 @@ class Node:
     def new_filter(self, params: FilterParams) -> int:
         filter_id = next(self._filter_counter)
 
-        # TODO: don't need the whole block here
-        current_block_number = self.get_block_by_number(
-            BlockLabel.LATEST, with_transactions=False
-        ).number
+        current_block_number = self.backend.get_latest_block_number()
         log_filter = LogFilter(params, current_block_number)
 
         self._log_filters[filter_id] = log_filter
@@ -306,28 +291,17 @@ class Node:
     def _get_logs(self, log_filter: LogFilter) -> List[LogEntry]:
         entries = []
 
-        # TODO: don't need the whole block here
-        current_block_number = self.get_block_by_number(
-            BlockLabel.LATEST, with_transactions=False
-        ).number
+        current_block_number = self.backend.get_latest_block_number()
 
-        # Enumerate the blocks in the block range to find all log entries which match.
         for block_number in log_filter.block_number_range(current_block_number):
-            block = self.get_block_by_number(block_number, with_transactions=False)
-            for transaction_hash in block.transactions:
-                # TODO: only need log entries here
-                receipt = self.backend.get_transaction_receipt(transaction_hash)
-                entries.extend(
-                    log_entry for log_entry in receipt.logs if log_filter.matches(log_entry)
-                )
+            for log_entry in self.backend.get_log_entries_by_block_number(block_number):
+                if log_filter.matches(log_entry):
+                    entries.append(log_entry)
 
         return entries
 
     def get_logs(self, params: FilterParams) -> List[LogEntry]:
-        # TODO: don't need the whole block here
-        current_block_number = self.get_block_by_number(
-            BlockLabel.LATEST, with_transactions=False
-        ).number
+        current_block_number = self.backend.get_latest_block_number()
         log_filter = LogFilter(params, current_block_number)
         return self._get_logs(log_filter)
 
