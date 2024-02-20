@@ -11,8 +11,17 @@ from .exceptions import (
     TransactionNotFound,
     ValidationError,
 )
-from .schema import Block, BlockLabel, EstimateGas, FilterParams, TransactionCall
-from .serializers import BlockInfo, LogEntry, TransactionInfo, TransactionReceipt
+from .schema import (
+    Block,
+    BlockInfo,
+    BlockLabel,
+    EstimateGasParams,
+    EthCallParams,
+    FilterParams,
+    LogEntry,
+    TransactionInfo,
+    TransactionReceipt,
+)
 
 
 class LogFilter:
@@ -234,11 +243,11 @@ class Node:
 
         return transaction_hash
 
-    def call(self, transaction: TransactionCall, block: Block) -> bytes:
-        return self.backend.call(transaction, block)
+    def call(self, params: EthCallParams, block: Block) -> bytes:
+        return self.backend.call(params, block)
 
-    def estimate_gas(self, transaction: EstimateGas, block: Block) -> int:
-        return self.backend.estimate_gas(transaction, block)
+    def estimate_gas(self, params: EstimateGasParams, block: Block) -> int:
+        return self.backend.estimate_gas(params, block)
 
     def new_block_filter(self) -> int:
         filter_id = next(self._filter_counter)

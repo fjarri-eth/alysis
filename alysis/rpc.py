@@ -7,10 +7,10 @@ from .node import Node
 from .schema import (
     Address,
     Block,
-    EstimateGas,
+    EstimateGasParams,
+    EthCallParams,
     FilterParams,
     Hash32,
-    TransactionCall,
     structure,
     unstructure,
 )
@@ -173,11 +173,11 @@ class RPCNode:
         return unstructure(self.node.send_raw_transaction(raw_transaction))
 
     def _eth_call(self, params: Tuple[JSON, ...]) -> JSON:
-        transaction, block = structure(Tuple[TransactionCall, Block], params)
+        transaction, block = structure(Tuple[EthCallParams, Block], params)
         return unstructure(self.node.call(transaction, block))
 
     def _eth_estimate_gas(self, params: Tuple[JSON, ...]) -> JSON:
-        transaction, block = structure(Tuple[EstimateGas, Block], params)
+        transaction, block = structure(Tuple[EstimateGasParams, Block], params)
         return unstructure(self.node.estimate_gas(transaction, block))
 
     def _eth_gas_price(self, params: Tuple[JSON, ...]) -> JSON:

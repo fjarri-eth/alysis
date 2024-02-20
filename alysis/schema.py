@@ -29,7 +29,7 @@ class FilterParams:
 
 
 @dataclass
-class TransactionCall:
+class EthCallParams:
     to: Address
     from_: Optional[Address] = None
     gas: Optional[int] = None
@@ -39,7 +39,7 @@ class TransactionCall:
 
 
 @dataclass
-class EstimateGas:
+class EstimateGasParams:
     from_: Address
     to: Optional[Address] = None
     gas: Optional[int] = None
@@ -47,6 +47,86 @@ class EstimateGas:
     nonce: Optional[int] = None
     value: int = 0
     data: Optional[bytes] = None
+
+
+@dataclass
+class TransactionInfo:
+    chain_id: int
+    block_hash: Optional[Hash32]
+    block_number: int
+    from_: Address
+    gas: int
+    gas_price: int
+    max_fee_per_gas: int
+    max_priority_fee_per_gas: int
+    hash: Hash32
+    input: bytes
+    nonce: int
+    to: Address
+    transaction_index: int
+    type: int
+    value: int
+    v: int
+    r: int
+    s: int
+
+
+@dataclass
+class LogEntry:
+    address: Address
+    block_hash: Hash32
+    block_number: int
+    data: bytes
+    log_index: int
+    removed: bool
+    topics: List[Hash32]  # TODO: technically not a hash, but still 32 bytes
+    transaction_index: int
+    transaction_hash: Hash32
+
+
+@dataclass
+class TransactionReceipt:
+    transaction_hash: Hash32
+    transaction_index: int
+    block_hash: Hash32
+    block_number: int
+    from_: Address
+    to: Optional[Address]
+    cumulative_gas_used: int
+    effective_gas_price: int
+    gas_used: int
+    contract_address: Optional[Address]
+    logs: List[LogEntry]
+    logs_bloom: bytes  # 256 bytes
+    type: int
+    status: int
+
+
+@dataclass
+class BlockInfo:
+    number: int
+    hash: Optional[Hash32]
+    parent_hash: Hash32
+    nonce: Optional[int]  # TODO: technically, 8 bytes
+    sha3_uncles: Hash32
+    logs_bloom: Optional[bytes]  # TODO: 256 bytes or None if it's a pending block
+    transactions_root: Hash32
+    state_root: Hash32
+    receipts_root: Hash32
+    miner: Optional[Address]
+    difficulty: int
+    total_difficulty: int
+    extra_data: bytes
+    size: int
+    gas_limit: int
+    gas_used: int
+    base_fee_per_gas: int
+    timestamp: int
+    transactions: Union[List[TransactionInfo], List[Hash32]]
+    uncles: List[Hash32]
+
+    def is_pending(self) -> bool:
+        return self.hash is None
 
 
 def structure_address(val: Any) -> Address:
