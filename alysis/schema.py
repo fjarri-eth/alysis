@@ -4,7 +4,7 @@ from typing import Any, List, Mapping, Optional, Sequence, Type, TypeVar, Union,
 
 from eth_typing import Address, Hash32
 
-from .structure import Structurer
+from .structure import Path, Structurer
 from .unstructure import Unstructurer
 
 
@@ -120,7 +120,7 @@ class BlockInfo:
     size: int
     gas_limit: int
     gas_used: int
-    base_fee_per_gas: Optional[int]
+    base_fee_per_gas: int
     timestamp: int
     transactions: Union[List[TransactionInfo], List[Hash32]]
     uncles: List[Hash32]
@@ -129,7 +129,9 @@ class BlockInfo:
         return self.hash is None
 
 
-def structure_address(val: Any) -> Address:
+def structure_address(
+    _structurer: "Structurer", _structure_into: type, _path: Path, val: Any
+) -> Address:
     if not isinstance(val, str) or not val.startswith("0x"):
         raise ValueError("The value must be a 0x-prefixed hex-encoded data")
     res = bytes.fromhex(val[2:])
@@ -138,7 +140,9 @@ def structure_address(val: Any) -> Address:
     return Address(res)
 
 
-def structure_hash32(val: Any) -> Hash32:
+def structure_hash32(
+    _structurer: "Structurer", _structure_into: type, _path: Path, val: Any
+) -> Hash32:
     if not isinstance(val, str) or not val.startswith("0x"):
         raise ValueError("The value must be a 0x-prefixed hex-encoded data")
     res = bytes.fromhex(val[2:])
@@ -147,37 +151,41 @@ def structure_hash32(val: Any) -> Hash32:
     return Hash32(res)
 
 
-def structure_bytes(val: Any) -> bytes:
+def structure_bytes(
+    _structurer: "Structurer", _structure_into: type, _path: Path, val: Any
+) -> bytes:
     if not isinstance(val, str) or not val.startswith("0x"):
         raise ValueError("The value must be a 0x-prefixed hex-encoded data")
     return bytes.fromhex(val[2:])
 
 
-def structure_int(val: Any) -> int:
+def structure_int(_structurer: "Structurer", _structure_into: type, _path: Path, val: Any) -> int:
     if not isinstance(val, str) or not val.startswith("0x"):
         raise ValueError("The value must be a 0x-prefixed hex-encoded integer")
     return int(val, 0)
 
 
-def structure_block(val: Any) -> BlockLabel:
+def structure_block(
+    _structurer: "Structurer", _structure_into: type, _path: Path, val: Any
+) -> BlockLabel:
     return BlockLabel(val)
 
 
-def structure_bool(val: Any) -> bool:
+def structure_bool(_structurer: "Structurer", _structure_into: type, _path: Path, val: Any) -> bool:
     if not isinstance(val, bool):
         raise TypeError("Expected a boolean value")
     return val
 
 
-def unstructure_int_as_hex(_unstructurer: Unstructurer, obj: int) -> str:
+def unstructure_int_as_hex(_unstructurer: Unstructurer, _unstructure_as: type, obj: int) -> str:
     return hex(obj)
 
 
-def unstructure_bytes_as_hex(_unstructurer: Unstructurer, obj: bytes) -> str:
+def unstructure_bytes_as_hex(_unstructurer: Unstructurer, _unstructure_as: type, obj: bytes) -> str:
     return "0x" + obj.hex()
 
 
-def unstructure_bool(_unstructurer: Unstructurer, obj: bool) -> bool:  # noqa: FBT001
+def unstructure_bool(_unstructurer: Unstructurer, _unstructure_as: type, obj: bool) -> bool:  # noqa: FBT001
     return obj
 
 
@@ -205,6 +213,8 @@ UNSTRUCTURER = Unstructurer.with_defaults(
         int: unstructure_int_as_hex,
         bytes: unstructure_bytes_as_hex,
         bool: unstructure_bool,
+        Address: unstructure_bytes_as_hex,
+        Hash32: unstructure_bytes_as_hex,
     },
     to_camel_case,
 )

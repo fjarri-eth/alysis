@@ -1,5 +1,5 @@
 import itertools
-from typing import List, Union
+from typing import Dict, List, Union
 
 from eth_typing import Address, Hash32
 from eth_utils import encode_hex
@@ -110,14 +110,14 @@ class Node:
 
         # filter tracking
         self._filter_counter = itertools.count()
-        self._log_filters = {}
-        self._log_filter_entries = {}
-        self._block_filters = {}
-        self._pending_transaction_filters = {}
+        self._log_filters: Dict[int, LogFilter] = {}
+        self._log_filter_entries: Dict[int, List[LogEntry]] = {}
+        self._block_filters: Dict[int, List[Hash32]] = {}
+        self._pending_transaction_filters: Dict[int, List[Hash32]] = {}
 
         # snapshot tracking
         self._snapshot_counter = itertools.count()
-        self._snapshots = {}
+        self._snapshots: Dict[int, Hash32] = {}
 
     def advance_time(self, to_timestamp: int) -> None:
         current_timestamp = self.backend.get_current_timestamp()
@@ -268,9 +268,7 @@ class Node:
         else:
             raise FilterNotFound("Unknown filter id")
 
-    def get_filter_changes(
-        self, filter_id: int
-    ) -> Union[List[LogEntry], List[BlockInfo], List[TransactionInfo]]:
+    def get_filter_changes(self, filter_id: int) -> Union[List[LogEntry], List[Hash32]]:
         if filter_id in self._block_filters:
             entries = self._block_filters[filter_id]
             self._block_filters[filter_id] = []
@@ -282,9 +280,9 @@ class Node:
             return entries
 
         if filter_id in self._log_filters:
-            entries = self._log_filter_entries[filter_id]
+            log_entries = self._log_filter_entries[filter_id]
             self._log_filter_entries[filter_id] = []
-            return entries
+            return log_entries
 
         raise FilterNotFound("Unknown filter id")
 

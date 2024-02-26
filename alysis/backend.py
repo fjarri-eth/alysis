@@ -52,7 +52,6 @@ if TYPE_CHECKING:
         BlockHeaderAPI,
         LogAPI,
         ReceiptAPI,
-        SignedTransactionAPI,
         TransactionFieldsAPI,
         VirtualMachineAPI,
     )
@@ -123,7 +122,7 @@ class PyEVMBackend:
         chaindb = self.chain.chaindb
 
         # A little hacky. Is there a better way?
-        assert isinstance(chaindb, HeaderDB)
+        assert isinstance(chaindb, HeaderDB)  # noqa: S101
         chaindb._set_as_canonical_chain_head(chaindb.db, block.header, GENESIS_PARENT_HASH)  # noqa: SLF001
         if block.number > 0:
             self.chain.import_block(block)
@@ -216,7 +215,7 @@ class PyEVMBackend:
 
     def _get_transaction_by_hash(
         self, transaction_hash: Hash32
-    ) -> tuple[BlockAPI, TransactionFieldsAPI, int]:
+    ) -> tuple[BlockAPI, SignedTransactionAPI, int]:
         head_block = self.chain.get_block()
         for index, transaction in enumerate(head_block.transactions):
             if transaction.hash == transaction_hash:
@@ -389,7 +388,8 @@ def make_block_info(
         gas_used=block.header.gas_used,
         # Note: this appears after EIP-1559 upgrade. Ethereum.org does not list this field,
         # but it's returned by providers.
-        base_fee_per_gas=block.header.base_fee_per_gas,
+        # Since we create the VM with Shanghai fork, we can safely cast to int here.
+        base_fee_per_gas=cast(int, block.header.base_fee_per_gas),
         timestamp=block.header.timestamp,
         transactions=transactions,
         uncles=[uncle.hash for uncle in block.uncles],
@@ -399,7 +399,7 @@ def make_block_info(
 def make_transaction_info(
     chain_id: int,
     block: BlockAPI,
-    transaction: TransactionFieldsAPI,
+    transaction: SignedTransactionAPI,
     transaction_index: int,
     *,
     is_pending: bool,
@@ -436,7 +436,7 @@ def make_transaction_info(
 
 def make_transaction_receipt(
     block: BlockAPI,
-    transaction: TransactionFieldsAPI,
+    transaction: SignedTransactionAPI,
     receipts: Sequence[ReceiptAPI],
     transaction_index: int,
 ) -> TransactionReceipt:
@@ -491,7 +491,7 @@ def make_log_entry(
         data=log.data,
         log_index=log_index,
         removed=False,
-        topics=[topic.to_bytes(32, byteorder="big") for topic in log.topics],
+        topics=[Hash32(topic.to_bytes(32, byteorder="big")) for topic in log.topics],
         transaction_index=transaction_index,
         transaction_hash=transaction.hash,
     )
@@ -499,7 +499,7 @@ def make_log_entry(
 
 def _generate_contract_address(address: Address, nonce: int) -> Address:
     next_account_hash = keccak(rlp_encode([address, nonce]))
-    return next_account_hash[-20:]
+    return Address(next_account_hash[-20:])
 
 
 def _extract_transaction_type(transaction: TransactionFieldsAPI) -> int:
@@ -516,10 +516,13 @@ def _extract_transaction_type(transaction: TransactionFieldsAPI) -> int:
 def _calculate_effective_gas_price(
     transaction: TransactionFieldsAPI, block: BlockAPI, transaction_type: int
 ) -> int:
+    base_fee_per_gas = block.header.base_fee_per_gas
+    # It is not None after the London fork.
+    assert base_fee_per_gas is not None  # noqa: S101
     return (
         min(
             transaction.max_fee_per_gas,
-            transaction.max_priority_fee_per_gas + block.header.base_fee_per_gas,
+            transaction.max_priority_fee_per_gas + base_fee_per_gas,
         )
         if transaction_type == 2
         else transaction.gas_price

@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from enum import Enum
-from typing import Iterator, Mapping, Optional, Sequence, Tuple, Union, cast
+from typing import Iterator, Optional, Tuple, cast
 
 from .exceptions import BlockNotFound, TransactionFailed, TransactionNotFound, TransactionReverted
 from .node import Node
@@ -105,38 +105,42 @@ class RPCNode:
             return methods[method_name](params)
 
     def _net_version(self, params: Tuple[JSON, ...]) -> JSON:
-        _ = structure(Tuple[()], params)
+        # TODO: currently `mypy` has problems with generic Tuples in Type:
+        # https://github.com/python/mypy/issues/16935
+        _ = structure(Tuple[()], params)  # type: ignore[arg-type]
         # Note: it's not hex encoded, but just stringified!
         return str(self.node.net_version())
 
     def _eth_chain_id(self, params: Tuple[JSON, ...]) -> JSON:
-        _ = structure(Tuple[()], params)
+        _ = structure(Tuple[()], params)  # type: ignore[arg-type]
         return unstructure(self.node.chain_id())
 
     def _eth_block_number(self, params: Tuple[JSON, ...]) -> JSON:
-        _ = structure(Tuple[()], params)
+        _ = structure(Tuple[()], params)  # type: ignore[arg-type]
         return unstructure(self.node.block_number())
 
     def _eth_get_balance(self, params: Tuple[JSON, ...]) -> JSON:
-        address, block = structure(Tuple[Address, Block], params)
+        address, block = cast(Tuple[Address, Block], structure(Tuple[Address, Block], params))  # type: ignore[arg-type]
         return unstructure(self.node.get_balance(address, block))
 
     def _eth_get_code(self, params: Tuple[JSON, ...]) -> JSON:
-        address, block = structure(Tuple[Address, Block], params)
+        address, block = cast(Tuple[Address, Block], structure(Tuple[Address, Block], params))  # type: ignore[arg-type]
         return unstructure(self.node.get_code(address, block))
 
     def _eth_get_storage_at(self, params: Tuple[JSON, ...]) -> JSON:
-        address, slot, block = structure(Tuple[Address, int, Block], params)
+        address, slot, block = cast(
+            Tuple[Address, int, Block], structure(Tuple[Address, int, Block], params)
+        )  # type: ignore[arg-type]
         return unstructure(
             self.node.get_storage_at(address, slot, block).to_bytes(32, byteorder="big")
         )
 
     def _eth_get_transaction_count(self, params: Tuple[JSON, ...]) -> JSON:
-        address, block = structure(Tuple[Address, Block], params)
+        address, block = cast(Tuple[Address, Block], structure(Tuple[Address, Block], params))  # type: ignore[arg-type]
         return unstructure(self.node.get_transaction_count(address, block))
 
     def _eth_get_transaction_by_hash(self, params: Tuple[JSON, ...]) -> JSON:
-        (transaction_hash,) = structure(Tuple[Hash32], params)
+        (transaction_hash,) = cast(Tuple[Hash32], structure(Tuple[Hash32], params))  # type: ignore[arg-type]
         try:
             transaction = self.node.get_transaction_by_hash(transaction_hash)
         except TransactionNotFound:
@@ -144,23 +148,27 @@ class RPCNode:
         return unstructure(transaction)
 
     def _eth_get_block_by_number(self, params: Tuple[JSON, ...]) -> JSON:
-        block, with_transactions = structure(Tuple[Block, bool], params)
+        block, with_transactions = cast(Tuple[Block, bool], structure(Tuple[Block, bool], params))  # type: ignore[arg-type]
         try:
-            block = self.node.get_block_by_number(block, with_transactions=with_transactions)
+            block_info = self.node.get_block_by_number(block, with_transactions=with_transactions)
         except BlockNotFound:
             return None
-        return unstructure(block)
+        return unstructure(block_info)
 
     def _eth_get_block_by_hash(self, params: Tuple[JSON, ...]) -> JSON:
-        block_hash, with_transactions = structure(Tuple[Hash32, bool], params)
+        block_hash, with_transactions = cast(
+            Tuple[Hash32, bool], structure(Tuple[Hash32, bool], params)
+        )  # type: ignore[arg-type]
         try:
-            block = self.node.get_block_by_hash(block_hash, with_transactions=with_transactions)
+            block_info = self.node.get_block_by_hash(
+                block_hash, with_transactions=with_transactions
+            )
         except BlockNotFound:
             return None
-        return unstructure(block)
+        return unstructure(block_info)
 
     def _eth_get_transaction_receipt(self, params: Tuple[JSON, ...]) -> JSON:
-        (transaction_hash,) = structure(Tuple[Hash32], params)
+        (transaction_hash,) = cast(Tuple[Hash32], structure(Tuple[Hash32], params))  # type: ignore[arg-type]
         try:
             receipt = self.node.get_transaction_receipt(transaction_hash)
         except TransactionNotFound:
@@ -168,41 +176,45 @@ class RPCNode:
         return unstructure(receipt)
 
     def _eth_send_raw_transaction(self, params: Tuple[JSON, ...]) -> JSON:
-        (raw_transaction,) = structure(Tuple[bytes], params)
+        (raw_transaction,) = cast(Tuple[bytes], structure(Tuple[bytes], params))  # type: ignore[arg-type]
         return unstructure(self.node.send_raw_transaction(raw_transaction))
 
     def _eth_call(self, params: Tuple[JSON, ...]) -> JSON:
-        transaction, block = structure(Tuple[EthCallParams, Block], params)
+        transaction, block = cast(
+            Tuple[EthCallParams, Block], structure(Tuple[EthCallParams, Block], params)
+        )  # type: ignore[arg-type]
         return unstructure(self.node.call(transaction, block))
 
     def _eth_estimate_gas(self, params: Tuple[JSON, ...]) -> JSON:
-        transaction, block = structure(Tuple[EstimateGasParams, Block], params)
+        transaction, block = cast(
+            Tuple[EstimateGasParams, Block], structure(Tuple[EstimateGasParams, Block], params)
+        )  # type: ignore[arg-type]
         return unstructure(self.node.estimate_gas(transaction, block))
 
     def _eth_gas_price(self, params: Tuple[JSON, ...]) -> JSON:
-        _ = structure(Tuple[()], params)
+        _ = structure(Tuple[()], params)  # type: ignore[arg-type]
         return unstructure(self.node.gas_price())
 
     def _eth_new_block_filter(self, params: Tuple[JSON, ...]) -> JSON:
-        _ = structure(Tuple[()], params)
+        _ = structure(Tuple[()], params)  # type: ignore[arg-type]
         return unstructure(self.node.new_block_filter())
 
     def _eth_new_pending_transaction_filter(self, params: Tuple[JSON, ...]) -> JSON:
-        _ = structure(Tuple[()], params)
+        _ = structure(Tuple[()], params)  # type: ignore[arg-type]
         return unstructure(self.node.new_pending_transaction_filter())
 
     def _eth_new_filter(self, params: Tuple[JSON, ...]) -> JSON:
-        (params,) = structure(Tuple[FilterParams], params)
-        return unstructure(self.node.new_filter(params))
+        (typed_params,) = cast(Tuple[FilterParams], structure(Tuple[FilterParams], params))  # type: ignore[arg-type]
+        return unstructure(self.node.new_filter(typed_params))
 
     def _eth_get_filter_changes(self, params: Tuple[JSON, ...]) -> JSON:
-        (filter_id,) = structure(Tuple[int], params)
+        (filter_id,) = cast(Tuple[int], structure(Tuple[int], params))  # type: ignore[arg-type]
         return unstructure(self.node.get_filter_changes(filter_id))
 
     def _eth_get_filter_logs(self, params: Tuple[JSON, ...]) -> JSON:
-        (filter_id,) = structure(Tuple[int], params)
+        (filter_id,) = cast(Tuple[int], structure(Tuple[int], params))  # type: ignore[arg-type]
         return unstructure(self.node.get_filter_logs(filter_id))
 
     def _eth_get_logs(self, params: Tuple[JSON, ...]) -> JSON:
-        (params,) = structure(Tuple[FilterParams], params)
-        return unstructure(self.node.get_logs(params))
+        (typed_params,) = cast(Tuple[FilterParams], structure(Tuple[FilterParams], params))  # type: ignore[arg-type]
+        return unstructure(self.node.get_logs(typed_params))
