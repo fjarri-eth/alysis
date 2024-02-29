@@ -55,6 +55,10 @@ implicit_reexport = true
 target-version = "py38" # Assume Python 3.8
 line-length = 100 # same as black
 
+[tool.ruff.lint.pyupgrade]
+# Don't suggest fixes not compatible with the specified target-version of Python
+keep-runtime-typing = true
+
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
@@ -110,6 +114,8 @@ ignore = [
     "SIM108",
     # Too many false positives. Sometimes a plain value is needed.
     "PLR2004",
+    # This should be decided on a case-by-case basis, sometimes it just hurts readability.
+    "PERF401",
 ]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.

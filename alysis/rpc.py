@@ -129,8 +129,9 @@ class RPCNode:
 
     def _eth_get_storage_at(self, params: Tuple[JSON, ...]) -> JSON:
         address, slot, block = cast(
-            Tuple[Address, int, Block], structure(Tuple[Address, int, Block], params)
-        )  # type: ignore[arg-type]
+            Tuple[Address, int, Block],
+            structure(Tuple[Address, int, Block], params),  # type: ignore[arg-type]
+        )
         return unstructure(
             self.node.get_storage_at(address, slot, block).to_bytes(32, byteorder="big")
         )
@@ -157,8 +158,9 @@ class RPCNode:
 
     def _eth_get_block_by_hash(self, params: Tuple[JSON, ...]) -> JSON:
         block_hash, with_transactions = cast(
-            Tuple[Hash32, bool], structure(Tuple[Hash32, bool], params)
-        )  # type: ignore[arg-type]
+            Tuple[Hash32, bool],
+            structure(Tuple[Hash32, bool], params),  # type: ignore[arg-type]
+        )
         try:
             block_info = self.node.get_block_by_hash(
                 block_hash, with_transactions=with_transactions
@@ -181,14 +183,16 @@ class RPCNode:
 
     def _eth_call(self, params: Tuple[JSON, ...]) -> JSON:
         transaction, block = cast(
-            Tuple[EthCallParams, Block], structure(Tuple[EthCallParams, Block], params)
-        )  # type: ignore[arg-type]
+            Tuple[EthCallParams, Block],
+            structure(Tuple[EthCallParams, Block], params),  # type: ignore[arg-type]
+        )
         return unstructure(self.node.call(transaction, block))
 
     def _eth_estimate_gas(self, params: Tuple[JSON, ...]) -> JSON:
         transaction, block = cast(
-            Tuple[EstimateGasParams, Block], structure(Tuple[EstimateGasParams, Block], params)
-        )  # type: ignore[arg-type]
+            Tuple[EstimateGasParams, Block],
+            structure(Tuple[EstimateGasParams, Block], params),  # type: ignore[arg-type]
+        )
         return unstructure(self.node.estimate_gas(transaction, block))
 
     def _eth_gas_price(self, params: Tuple[JSON, ...]) -> JSON:

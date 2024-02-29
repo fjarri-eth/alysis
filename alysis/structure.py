@@ -22,7 +22,7 @@ from exceptiongroup import ExceptionGroup
 Path = List[Union[str, int]]
 
 
-def structure_none(structurer: "Structurer", structure_into: type, path: Path, val: Any) -> None:
+def structure_none(_structurer: "Structurer", _structure_into: type, _path: Path, val: Any) -> None:
     if val is not None:
         raise ValueError("The value is not `None`")
 
@@ -32,7 +32,7 @@ def structure_union(structurer: "Structurer", structure_into: type, path: Path, 
     args = get_args(structure_into)
     for arg in args:
         try:
-            result = structurer._structure(path, arg, val)
+            result = structurer.structure_at_path(path, arg, val)
             break
         except (StructuringError, StructuringErrorGroup) as exc:
             exceptions.append(exc)
@@ -66,7 +66,7 @@ def structure_tuple(structurer: "Structurer", structure_into: type, path: Path, 
     exceptions = []
     for index, (item, tp) in enumerate(zip(val, args)):
         try:
-            results.append(structurer._structure([*path, index], tp, item))
+            results.append(structurer.structure_at_path([*path, index], tp, item))
         except (StructuringError, StructuringErrorGroup) as exc:  # noqa: PERF203
             exceptions.append(exc)
 
@@ -81,7 +81,8 @@ def structure_list(structurer: "Structurer", structure_into: type, path: Path, v
     if not isinstance(val, (list, tuple)):
         raise TypeError("Can only structure a tuple or a list into a list generic")
     return [
-        structurer._structure([*path, index], args[0], item) for (index, item) in enumerate(val)
+        structurer.structure_at_path([*path, index], args[0], item)
+        for (index, item) in enumerate(val)
     ]
 
 
@@ -112,9 +113,10 @@ def collect_messages(level: int, exc: StructuringError) -> List[Tuple[int, str, 
     else:
         exceptions = []
 
-    return [(level, exc.path_str(), message)] + sum(
-        (collect_messages(level + 1, exc) for exc in exceptions), []
-    )
+    result = [(level, exc.path_str(), message)]
+    for exc in exceptions:
+        result.extend(collect_messages(level + 1, exc))
+    return result
 
 
 _S = TypeVar("_S", bound="StructuringErrorGroup")
@@ -131,7 +133,7 @@ class StructuringErrorGroup(ExceptionGroup[StructuringError], StructuringError):
         return cls(path, f"Failed to structure into {structure_into}", excs)
 
     def __new__(
-        cls: Type[_S], path: List[Union[int, str]], msg: str, excs: Sequence[StructuringError]
+        cls: Type[_S], _path: List[Union[int, str]], msg: str, excs: Sequence[StructuringError]
     ) -> _S:
         # TODO (PY): no need for type-ignore in 3.12.
         return ExceptionGroup.__new__(cls, msg, excs)  # type: ignore[no-any-return]
@@ -192,7 +194,7 @@ class Structurer:
             obj_name = self._field_name_hook(field.name)
             if obj_name in obj:
                 try:
-                    results[field.name] = self._structure(
+                    results[field.name] = self.structure_at_path(
                         [*path, field.name], field.type, obj[obj_name]
                     )
                 except StructuringError as exc:
@@ -225,7 +227,9 @@ class Structurer:
         for i, field in enumerate(struct_fields):
             if i < len(obj):
                 try:
-                    results[field.name] = self._structure([*path, field.name], field.type, obj[i])
+                    results[field.name] = self.structure_at_path(
+                        [*path, field.name], field.type, obj[i]
+                    )
                 except StructuringError as exc:
                     exceptions.append(exc)
             elif field.default is not MISSING:
@@ -240,7 +244,7 @@ class Structurer:
 
         return results
 
-    def _structure(self, path: Path, structure_into: Type[_T], obj: Any) -> _T:
+    def structure_at_path(self, path: Path, structure_into: Type[_T], obj: Any) -> _T:
         origin = typing.get_origin(structure_into)
         if origin is not None:
             tp = origin
@@ -271,9 +275,6 @@ class Structurer:
             return cast(_T, structure_into(**results))
 
         raise StructuringError(path, f"No hooks registered to structure into {structure_into}")
-
-    def structure_at_path(self, path: Path, structure_into: Type[_T], obj: Any) -> _T:
-        return self._structure(path, structure_into, obj)
 
     def structure(self, structure_into: Type[_T], obj: Any) -> _T:
         return self.structure_at_path([], structure_into, obj)

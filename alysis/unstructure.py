@@ -23,10 +23,10 @@ def unstructure_list(unstructurer: "Unstructurer", unstructure_as: type, obj: Li
     args = get_args(unstructure_as)
     if len(args) > 0:
         return [unstructurer.unstructure_as(args[0], item) for item in obj]
-    else:
-        # This can happen if we're just give a list of items to unstructure,
-        # as opposed to pulling a List[...] annotation out of a dataclass.
-        return [unstructurer.unstructure(item) for item in obj]
+
+    # This can happen if we're just give a list of items to unstructure,
+    # as opposed to pulling a List[...] annotation out of a dataclass.
+    return [unstructurer.unstructure(item) for item in obj]
 
 
 def unstructure_union(unstructurer: "Unstructurer", unstructure_as: type, obj: Optional[Any]) -> IR:
@@ -34,7 +34,7 @@ def unstructure_union(unstructurer: "Unstructurer", unstructure_as: type, obj: O
     for arg in args:
         try:
             return unstructurer.unstructure_as(arg, obj)
-        except UnstructuringError:
+        except UnstructuringError:  # noqa: PERF203
             continue
 
     raise UnstructuringError(f"Cannot unstructure as {unstructure_as}")
@@ -78,7 +78,7 @@ class Unstructurer:
         if tp in self._hooks:
             try:
                 return self._hooks[tp](self, unstructure_as, obj)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 raise UnstructuringError(f"Cannot unstructure as {unstructure_as}") from exc
 
         if is_dataclass(unstructure_as):
