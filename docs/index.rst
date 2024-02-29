@@ -6,7 +6,6 @@ Alysis, an Ethereum testerchain
    :maxdepth: 2
    :caption: Contents:
 
-   tutorial
    api
    changelog
 

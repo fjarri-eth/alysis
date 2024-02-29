@@ -16,3 +16,8 @@ RPC
 
 .. autoclass:: RPCNode
    :members:
+
+.. autoclass:: JSON
+
+.. autoclass:: RPCError()
+   :members:
