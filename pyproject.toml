@@ -27,6 +27,21 @@ readme = "README.md"
 [project.urls]
 homepage = "https://github.com/fjarri/alysis"
 
+[project.optional-dependencies]
+tests = [
+    "pytest>=6",
+    "pytest-cov",
+]
+docs = [
+    "sphinx>=4",
+    "furo",
+    "setuptools-scm",
+]
+lint = [
+    "mypy>=1.4",
+    "ruff>=0.2",
+]
+
 [tool.pdm]
 version = { source = "scm" }
 
