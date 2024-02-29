@@ -1,10 +1,13 @@
+"""RPC-like API, mimicking the behavior of major Ethereum providers."""
+
+from __future__ import annotations
+
 from contextlib import contextmanager
 from enum import Enum
-from typing import Iterator, Optional, Tuple, cast
+from typing import TYPE_CHECKING, Iterator, Optional, Tuple, cast
 
-from .exceptions import BlockNotFound, TransactionFailed, TransactionNotFound, TransactionReverted
-from .node import Node
-from .schema import (
+from ._exceptions import BlockNotFound, TransactionFailed, TransactionNotFound, TransactionReverted
+from ._schema import (
     JSON,
     Address,
     Block,
@@ -15,6 +18,9 @@ from .schema import (
     structure,
     unstructure,
 )
+
+if TYPE_CHECKING:
+    from ._node import Node
 
 
 class RPCErrorCode(Enum):
@@ -37,11 +43,25 @@ class RPCErrorCode(Enum):
 
 
 class RPCError(Exception):
-    def __init__(self, code: RPCErrorCode, message: str, data: Optional[str] = None):
+    """
+    An exception raised in case of a known error, that is something that would be returned as
+    ``"error": {"code": ..., "message": ..., "data": ...}`` sub-dictionary in an RPC response.
+    """
+
+    code: int
+    """The error type."""
+
+    message: str
+    """The associated message."""
+
+    data: Optional[str]
+    """The associated hex-encoded data (if any)."""
+
+    def __init__(self, code: RPCErrorCode, message: str, data: Optional[bytes] = None):
         super().__init__(f"Error {code}: {message}")
-        self.code = code
+        self.code = code.value
         self.message = message
-        self.data = data
+        self.data = cast(str, unstructure(data)) if data is not None else None
 
 
 @contextmanager
@@ -65,7 +85,7 @@ def into_rpc_errors() -> Iterator[None]:
         else:
             error = RPCErrorCode.EXECUTION_ERROR
             message = "execution reverted"
-            data = cast(str, unstructure(reason_data))
+            data = reason_data
 
         raise RPCError(error, message, data) from exc
 
@@ -74,10 +94,19 @@ def into_rpc_errors() -> Iterator[None]:
 
 
 class RPCNode:
+    """
+    A wrapper for :py:class:`Node` exposing an RPC-like interface,
+    taking and returning JSON-compatible data structures.
+    """
+
     def __init__(self, node: Node):
         self.node = node
 
     def rpc(self, method_name: str, *params: JSON) -> JSON:
+        """
+        Makes an RPC request to the chain and returns the result on success,
+        or raises :py:class:`RPCError` on failure.
+        """
         methods = dict(
             net_version=self._net_version,
             eth_chainId=self._eth_chain_id,

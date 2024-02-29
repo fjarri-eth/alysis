@@ -1,3 +1,5 @@
+"""PyEVM-specific logic. Everything imported from ``eth`` is contained within this module."""
+
 from __future__ import annotations
 
 import os
@@ -29,13 +31,13 @@ from eth_typing import Address, BlockNumber, Hash32
 from eth_utils import encode_hex, keccak
 from eth_utils.exceptions import ValidationError
 
-from .exceptions import (
+from ._exceptions import (
     BlockNotFound,
     TransactionFailed,
     TransactionNotFound,
     TransactionReverted,
 )
-from .schema import (
+from ._schema import (
     Block,
     BlockInfo,
     BlockLabel,
@@ -61,7 +63,7 @@ if TYPE_CHECKING:
 ZERO_ADDRESS = Address(20 * b"\x00")
 
 
-def rlp_encode(obj: Any) -> bytes:
+def _rlp_encode(obj: Any) -> bytes:
     # Force typing here, since `rlp` is not typed
     return cast(bytes, rlp.encode(obj))
 
@@ -84,7 +86,7 @@ class PyEVMBackend:
                 header_params["gas_limit"] = parent_header.gas_limit
                 return super().create_header_from_parent(parent_header, **header_params)
 
-        blank_root_hash = keccak(rlp_encode(b""))
+        blank_root_hash = keccak(_rlp_encode(b""))
 
         genesis_params: dict[str, Union[int, BlockNumber, bytes, Address, Hash32, None]] = {
             "coinbase": ZERO_ADDRESS,
@@ -383,7 +385,7 @@ def make_block_info(
         # TODO: actual total difficulty
         total_difficulty=block.header.difficulty if not is_pending else None,
         extra_data=block.header.extra_data.rjust(32, b"\x00"),
-        size=len(rlp_encode(block)),  # TODO: is this right?
+        size=len(_rlp_encode(block)),  # TODO: is this right?
         gas_limit=block.header.gas_limit,
         gas_used=block.header.gas_used,
         # Note: this appears after EIP-1559 upgrade. Ethereum.org does not list this field,
@@ -498,7 +500,7 @@ def make_log_entry(
 
 
 def _generate_contract_address(address: Address, nonce: int) -> Address:
-    next_account_hash = keccak(rlp_encode([address, nonce]))
+    next_account_hash = keccak(_rlp_encode([address, nonce]))
     return Address(next_account_hash[-20:])
 
 

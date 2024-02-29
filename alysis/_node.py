@@ -4,14 +4,14 @@ from typing import Dict, List, Union
 from eth_typing import Address, Hash32
 from eth_utils import encode_hex
 
-from .backend import PyEVMBackend
-from .exceptions import (
+from ._backend import PyEVMBackend
+from ._exceptions import (
     FilterNotFound,
     SnapshotNotFound,
     TransactionNotFound,
     ValidationError,
 )
-from .schema import (
+from ._schema import (
     Block,
     BlockInfo,
     BlockLabel,
@@ -91,7 +91,12 @@ class LogFilter:
 
 
 class Node:
-    DEFAULT_ID = int.from_bytes(b"alysis", byteorder="big")
+    """
+    An Ethereum node maintaining its own local chain.
+    """
+
+    DEFAULT_ID: int = int.from_bytes(b"alysis", byteorder="big")
+    """The default chain ID."""
 
     def __init__(
         self,

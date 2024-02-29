@@ -1,4 +1,6 @@
-from .exceptions import (
+"""Ethereum testerchain."""
+
+from ._exceptions import (
     BlockNotFound,
     FilterNotFound,
     SnapshotNotFound,
@@ -7,12 +9,14 @@ from .exceptions import (
     TransactionReverted,
     ValidationError,
 )
-from .node import Node
-from .rpc import RPCError, RPCNode
+from ._node import Node
+from ._rpc import RPCError, RPCNode
+from ._schema import JSON
 
 __all__ = [
     "BlockNotFound",
     "FilterNotFound",
+    "JSON",
     "Node",
     "RPCNode",
     "RPCError",
