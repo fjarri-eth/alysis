@@ -95,8 +95,10 @@ class Node:
     An Ethereum node maintaining its own local chain.
     """
 
-    DEFAULT_ID: int = int.from_bytes(b"alysis", byteorder="big")
-    """The default chain ID."""
+    DEFAULT_ID = int.from_bytes(b"alysis", byteorder="big")
+
+    root_private_key: bytes
+    """The private key of the funded address created with the chain."""
 
     def __init__(
         self,
@@ -107,7 +109,7 @@ class Node:
     ):
         backend = PyEVMBackend(root_balance_wei=root_balance_wei, chain_id=chain_id)
 
-        self.root_private_key = backend.root_private_key
+        self.root_private_key = backend.root_private_key.to_bytes()
 
         self.backend = backend
 
