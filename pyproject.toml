@@ -31,6 +31,7 @@ homepage = "https://github.com/fjarri/alysis"
 tests = [
     "pytest>=6",
     "pytest-cov",
+    "eth-account>=0.6"
 ]
 docs = [
     "sphinx>=4",
