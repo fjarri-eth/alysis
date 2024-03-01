@@ -111,7 +111,7 @@ class Node:
 
         self.root_private_key = backend.root_private_key.to_bytes()
 
-        self.backend = backend
+        self._backend = backend
 
         self._auto_mine_transactions = auto_mine_transactions
 
@@ -127,7 +127,7 @@ class Node:
         self._snapshots: Dict[int, Hash32] = {}
 
     def advance_time(self, to_timestamp: int) -> None:
-        current_timestamp = self.backend.get_current_timestamp()
+        current_timestamp = self._backend.get_current_timestamp()
         if to_timestamp == current_timestamp:
             return
         if to_timestamp < current_timestamp:
@@ -135,7 +135,7 @@ class Node:
                 f"The new timestamp ({to_timestamp}) must be greater than "
                 f"the current one ({current_timestamp})"
             )
-        self.backend.advance_time(to_timestamp)
+        self._backend.advance_time(to_timestamp)
 
     def enable_auto_mine_transactions(self) -> None:
         self._auto_mine_transactions = True
@@ -145,21 +145,21 @@ class Node:
         self._auto_mine_transactions = False
 
     def mine_block(self) -> None:
-        block_hash = self.backend.mine_block()
+        block_hash = self._backend.mine_block()
 
         # feed the block hash to any block filters
         for block_filter in self._block_filters.values():
             block_filter.append(block_hash)
 
         for filter_id, log_filter in self._log_filters.items():
-            log_entries = self.backend.get_log_entries_by_block_hash(block_hash)
+            log_entries = self._backend.get_log_entries_by_block_hash(block_hash)
             for log_entry in log_entries:
                 if log_filter.matches(log_entry):
                     self._log_filter_entries[filter_id].append(log_entry)
 
     def take_snapshot(self) -> int:
         snapshot_id = next(self._snapshot_counter)
-        self._snapshots[snapshot_id] = self.backend.get_latest_block_hash()
+        self._snapshots[snapshot_id] = self._backend.get_latest_block_hash()
         return snapshot_id
 
     def revert_to_snapshot(self, snapshot_id: int) -> None:
@@ -168,7 +168,7 @@ class Node:
         except KeyError as exc:
             raise SnapshotNotFound(f"No snapshot found for id: {snapshot_id}") from exc
         else:
-            self.backend.revert_to_block(block_hash)
+            self._backend.revert_to_block(block_hash)
 
         # TODO: revert the filter state
 
@@ -177,7 +177,7 @@ class Node:
         return 1
 
     def chain_id(self) -> int:
-        return self.backend.chain_id
+        return self._backend.chain_id
 
     def gas_price(self) -> int:
         # The specific algorithm is not enforced in the standard,
@@ -188,13 +188,13 @@ class Node:
         return block_info.base_fee_per_gas + 10**9
 
     def block_number(self) -> int:
-        return self.backend.get_latest_block_number()
+        return self._backend.get_latest_block_number()
 
     def get_balance(self, address: Address, block: Block) -> int:
-        return self.backend.get_balance(address, block)
+        return self._backend.get_balance(address, block)
 
     def get_code(self, address: Address, block: Block) -> bytes:
-        return self.backend.get_code(address, block)
+        return self._backend.get_code(address, block)
 
     def get_storage_at(
         self,
@@ -202,22 +202,22 @@ class Node:
         slot: int,
         block: Block,
     ) -> int:
-        return self.backend.get_storage(address, slot, block)
+        return self._backend.get_storage(address, slot, block)
 
     def get_transaction_count(self, address: Address, block: Block) -> int:
-        return self.backend.get_transaction_count(address, block)
+        return self._backend.get_transaction_count(address, block)
 
     def get_transaction_by_hash(self, transaction_hash: Hash32) -> TransactionInfo:
-        return self.backend.get_transaction_by_hash(transaction_hash)
+        return self._backend.get_transaction_by_hash(transaction_hash)
 
     def get_block_by_number(self, block: Block, *, with_transactions: bool) -> BlockInfo:
-        return self.backend.get_block_by_number(block, with_transactions=with_transactions)
+        return self._backend.get_block_by_number(block, with_transactions=with_transactions)
 
     def get_block_by_hash(self, block_hash: Hash32, *, with_transactions: bool) -> BlockInfo:
-        return self.backend.get_block_by_hash(block_hash, with_transactions=with_transactions)
+        return self._backend.get_block_by_hash(block_hash, with_transactions=with_transactions)
 
     def get_transaction_receipt(self, transaction_hash: Hash32) -> TransactionReceipt:
-        result = self.backend.get_transaction_receipt(transaction_hash)
+        result = self._backend.get_transaction_receipt(transaction_hash)
         if result is None:
             raise TransactionNotFound(
                 f"No transaction found for transaction hash: {encode_hex(transaction_hash)}"
@@ -225,13 +225,13 @@ class Node:
         return result
 
     def send_raw_transaction(self, raw_transaction: bytes) -> Hash32:
-        transaction = self.backend.decode_transaction(raw_transaction)
+        transaction = self._backend.decode_transaction(raw_transaction)
         transaction_hash = transaction.hash
 
         for tx_filter in self._pending_transaction_filters.values():
             tx_filter.append(transaction_hash)
 
-        self.backend.send_decoded_transaction(transaction)
+        self._backend.send_decoded_transaction(transaction)
 
         if self._auto_mine_transactions:
             self.mine_block()
@@ -239,10 +239,10 @@ class Node:
         return transaction_hash
 
     def call(self, params: EthCallParams, block: Block) -> bytes:
-        return self.backend.call(params, block)
+        return self._backend.call(params, block)
 
     def estimate_gas(self, params: EstimateGasParams, block: Block) -> int:
-        return self.backend.estimate_gas(params, block)
+        return self._backend.estimate_gas(params, block)
 
     def new_block_filter(self) -> int:
         filter_id = next(self._filter_counter)
@@ -257,7 +257,7 @@ class Node:
     def new_filter(self, params: FilterParams) -> int:
         filter_id = next(self._filter_counter)
 
-        current_block_number = self.backend.get_latest_block_number()
+        current_block_number = self._backend.get_latest_block_number()
         log_filter = LogFilter(params, current_block_number)
 
         self._log_filters[filter_id] = log_filter
@@ -296,17 +296,17 @@ class Node:
     def _get_logs(self, log_filter: LogFilter) -> List[LogEntry]:
         entries = []
 
-        current_block_number = self.backend.get_latest_block_number()
+        current_block_number = self._backend.get_latest_block_number()
 
         for block_number in log_filter.block_number_range(current_block_number):
-            for log_entry in self.backend.get_log_entries_by_block_number(block_number):
+            for log_entry in self._backend.get_log_entries_by_block_number(block_number):
                 if log_filter.matches(log_entry):
                     entries.append(log_entry)
 
         return entries
 
     def get_logs(self, params: FilterParams) -> List[LogEntry]:
-        current_block_number = self.backend.get_latest_block_number()
+        current_block_number = self._backend.get_latest_block_number()
         log_filter = LogFilter(params, current_block_number)
         return self._get_logs(log_filter)
 
