@@ -1,6 +1,6 @@
 import pytest
 from alysis import Node, RPCNode
-from eth_keys import KeyAPI
+from eth_account import Account
 
 
 @pytest.fixture
@@ -14,5 +14,10 @@ def rpc_node(node):
 
 
 @pytest.fixture
-def root_address(node):
-    return KeyAPI().PrivateKey(node.root_private_key).public_key.to_canonical_address()
+def root_account(node):
+    return Account.from_key(node.root_private_key)
+
+
+@pytest.fixture
+def another_account():
+    return Account.create()
