@@ -42,6 +42,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.doctest",
     "sphinx.ext.viewcode",
+    "enum_tools.autoenum",
 ]
 
 autoclass_content = "both"
@@ -74,5 +75,5 @@ python_use_unqualified_type_names = True
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
-    "eth_account": ("https://eth-account.readthedocs.io/en/stable/", None),
+    "eth_typing": ("https://eth-typing.readthedocs.io/en/stable/", None),
 }

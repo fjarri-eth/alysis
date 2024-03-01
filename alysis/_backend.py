@@ -1,14 +1,18 @@
-from __future__ import annotations
+"""PyEVM-specific logic. Everything imported from ``eth`` is contained within this module."""
 
 import os
 import time
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union, cast
+from typing import Any, Dict, List, Sequence, Tuple, Union, cast
 
 import rlp  # type: ignore[import-untyped]
 from eth.abc import (
     BlockAPI,
+    BlockHeaderAPI,
+    LogAPI,
+    ReceiptAPI,
     SignedTransactionAPI,
     TransactionFieldsAPI,
+    VirtualMachineAPI,
 )
 from eth.chains.base import MiningChain
 from eth.constants import (
@@ -29,13 +33,13 @@ from eth_typing import Address, BlockNumber, Hash32
 from eth_utils import encode_hex, keccak
 from eth_utils.exceptions import ValidationError
 
-from .exceptions import (
+from ._exceptions import (
     BlockNotFound,
     TransactionFailed,
     TransactionNotFound,
     TransactionReverted,
 )
-from .schema import (
+from ._schema import (
     Block,
     BlockInfo,
     BlockLabel,
@@ -46,22 +50,10 @@ from .schema import (
     TransactionReceipt,
 )
 
-if TYPE_CHECKING:
-    from eth.abc import (
-        BlockAPI,
-        BlockHeaderAPI,
-        LogAPI,
-        ReceiptAPI,
-        TransactionFieldsAPI,
-        VirtualMachineAPI,
-    )
-    from eth.typing import AccountDetails
-
-
 ZERO_ADDRESS = Address(20 * b"\x00")
 
 
-def rlp_encode(obj: Any) -> bytes:
+def _rlp_encode(obj: Any) -> bytes:
     # Force typing here, since `rlp` is not typed
     return cast(bytes, rlp.encode(obj))
 
@@ -84,9 +76,9 @@ class PyEVMBackend:
                 header_params["gas_limit"] = parent_header.gas_limit
                 return super().create_header_from_parent(parent_header, **header_params)
 
-        blank_root_hash = keccak(rlp_encode(b""))
+        blank_root_hash = keccak(_rlp_encode(b""))
 
-        genesis_params: dict[str, Union[int, BlockNumber, bytes, Address, Hash32, None]] = {
+        genesis_params: Dict[str, Union[int, BlockNumber, bytes, Address, Hash32, None]] = {
             "coinbase": ZERO_ADDRESS,
             "difficulty": POST_MERGE_DIFFICULTY,
             "extra_data": b"",
@@ -215,7 +207,7 @@ class PyEVMBackend:
 
     def _get_transaction_by_hash(
         self, transaction_hash: Hash32
-    ) -> tuple[BlockAPI, SignedTransactionAPI, int]:
+    ) -> Tuple[BlockAPI, SignedTransactionAPI, int]:
         head_block = self.chain.get_block()
         for index, transaction in enumerate(head_block.transactions):
             if transaction.hash == transaction_hash:
@@ -244,13 +236,15 @@ class PyEVMBackend:
         block_api = self._get_block_by_number(block)
         return self.chain.get_vm(at_header=block_api.header)
 
-    def get_transaction_receipt(self, transaction_hash: Hash32) -> Optional[TransactionReceipt]:
+    def get_transaction_receipt(self, transaction_hash: Hash32) -> TransactionReceipt:
         block, transaction, transaction_index = self._get_transaction_by_hash(
             transaction_hash,
         )
         is_pending = block.number == self.chain.get_block().number
         if is_pending:
-            return None
+            raise TransactionNotFound(
+                f"Transaction {encode_hex(transaction_hash)} is not yet included in a block"
+            )
 
         block_receipts = block.get_receipts(self.chain.chaindb)
 
@@ -273,9 +267,9 @@ class PyEVMBackend:
         vm = self._get_vm_for_block_number(block)
         return vm.state.get_code(Address(address))
 
-    def get_storage(self, address: Address, slot: int, block: Block) -> int:
+    def get_storage(self, address: Address, slot: int, block: Block) -> bytes:
         vm = self._get_vm_for_block_number(block)
-        return vm.state.get_storage(Address(address), slot)
+        return vm.state.get_storage(Address(address), slot).to_bytes(32, byteorder="big")
 
     def get_base_fee(self, block: Block) -> int:
         vm = self._get_vm_for_block_number(block)
@@ -289,6 +283,7 @@ class PyEVMBackend:
         try:
             self.chain.apply_transaction(evm_transaction)
         except ValidationError as exc:
+            # TODO: Should it raise `ValidationError` instead?
             raise TransactionFailed(exc.args[0]) from exc
         return evm_transaction.hash
 
@@ -383,7 +378,7 @@ def make_block_info(
         # TODO: actual total difficulty
         total_difficulty=block.header.difficulty if not is_pending else None,
         extra_data=block.header.extra_data.rjust(32, b"\x00"),
-        size=len(rlp_encode(block)),  # TODO: is this right?
+        size=len(_rlp_encode(block)),  # TODO: is this right?
         gas_limit=block.header.gas_limit,
         gas_used=block.header.gas_used,
         # Note: this appears after EIP-1559 upgrade. Ethereum.org does not list this field,
@@ -498,7 +493,7 @@ def make_log_entry(
 
 
 def _generate_contract_address(address: Address, nonce: int) -> Address:
-    next_account_hash = keccak(rlp_encode([address, nonce]))
+    next_account_hash = keccak(_rlp_encode([address, nonce]))
     return Address(next_account_hash[-20:])
 
 

@@ -4,8 +4,8 @@ from typing import Any, List, Mapping, Optional, Sequence, Type, TypeVar, Union,
 
 from eth_typing import Address, Hash32
 
-from .structure import Path, Structurer
-from .unstructure import Unstructurer
+from ._structure import Path, Structurer
+from ._unstructure import Unstructurer
 
 
 class BlockLabel(Enum):

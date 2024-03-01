@@ -36,6 +36,7 @@ docs = [
     "sphinx>=4",
     "furo",
     "setuptools-scm",
+    "enum-tools[sphinx]",
 ]
 lint = [
     "mypy>=1.4",
@@ -131,6 +132,8 @@ ignore = [
     "PLR2004",
     # This should be decided on a case-by-case basis, sometimes it just hurts readability.
     "PERF401",
+    # This is only valid if we use `from __future__ import annotations`.
+    "TCH002",
 ]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.

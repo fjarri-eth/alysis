@@ -2,16 +2,14 @@ import itertools
 from typing import Dict, List, Union
 
 from eth_typing import Address, Hash32
-from eth_utils import encode_hex
 
-from .backend import PyEVMBackend
-from .exceptions import (
+from ._backend import PyEVMBackend
+from ._exceptions import (
     FilterNotFound,
     SnapshotNotFound,
-    TransactionNotFound,
     ValidationError,
 )
-from .schema import (
+from ._schema import (
     Block,
     BlockInfo,
     BlockLabel,
@@ -91,7 +89,17 @@ class LogFilter:
 
 
 class Node:
+    """
+    An Ethereum node maintaining its own local chain.
+
+    If ``auto_mine_transactions`` is ``True``, a new block is mined
+    after every successful transaction.
+    """
+
     DEFAULT_ID = int.from_bytes(b"alysis", byteorder="big")
+
+    root_private_key: bytes
+    """The private key of the funded address created with the chain."""
 
     def __init__(
         self,
@@ -102,9 +110,9 @@ class Node:
     ):
         backend = PyEVMBackend(root_balance_wei=root_balance_wei, chain_id=chain_id)
 
-        self.root_private_key = backend.root_private_key
+        self.root_private_key = backend.root_private_key.to_bytes()
 
-        self.backend = backend
+        self._backend = backend
 
         self._auto_mine_transactions = auto_mine_transactions
 
@@ -120,7 +128,8 @@ class Node:
         self._snapshots: Dict[int, Hash32] = {}
 
     def advance_time(self, to_timestamp: int) -> None:
-        current_timestamp = self.backend.get_current_timestamp()
+        """Advances the chain time to the given timestamp and mines a new block."""
+        current_timestamp = self._backend.get_current_timestamp()
         if to_timestamp == current_timestamp:
             return
         if to_timestamp < current_timestamp:
@@ -128,129 +137,202 @@ class Node:
                 f"The new timestamp ({to_timestamp}) must be greater than "
                 f"the current one ({current_timestamp})"
             )
-        self.backend.advance_time(to_timestamp)
+        self._backend.advance_time(to_timestamp)
 
     def enable_auto_mine_transactions(self) -> None:
+        """Turns automining on and mines a new block."""
         self._auto_mine_transactions = True
         self.mine_block()
 
     def disable_auto_mine_transactions(self) -> None:
+        """Turns automining off."""
         self._auto_mine_transactions = False
 
     def mine_block(self) -> None:
-        block_hash = self.backend.mine_block()
+        """Mines a new block containing all the pending transactions."""
+        block_hash = self._backend.mine_block()
 
         # feed the block hash to any block filters
         for block_filter in self._block_filters.values():
             block_filter.append(block_hash)
 
         for filter_id, log_filter in self._log_filters.items():
-            log_entries = self.backend.get_log_entries_by_block_hash(block_hash)
+            log_entries = self._backend.get_log_entries_by_block_hash(block_hash)
             for log_entry in log_entries:
                 if log_filter.matches(log_entry):
                     self._log_filter_entries[filter_id].append(log_entry)
 
     def take_snapshot(self) -> int:
+        """
+        Takes a snapshot of the current node state
+        (including the state of both the chain and the filters),
+        and returns the snapshot ID.
+
+        Note that the snapshots are stored within this object,
+        and IDs are only valid for it, not other :py:class:`Node` instances.
+        """
         snapshot_id = next(self._snapshot_counter)
-        self._snapshots[snapshot_id] = self.backend.get_latest_block_hash()
+        self._snapshots[snapshot_id] = self._backend.get_latest_block_hash()
         return snapshot_id
 
     def revert_to_snapshot(self, snapshot_id: int) -> None:
+        """Reverts the node state to the given snapshot."""
         try:
             block_hash = self._snapshots[snapshot_id]
         except KeyError as exc:
             raise SnapshotNotFound(f"No snapshot found for id: {snapshot_id}") from exc
         else:
-            self.backend.revert_to_block(block_hash)
+            self._backend.revert_to_block(block_hash)
 
         # TODO: revert the filter state
 
     def net_version(self) -> int:
+        """Returns the current network id."""
         # TODO: make adjustable
         return 1
 
-    def chain_id(self) -> int:
-        return self.backend.chain_id
+    def eth_chain_id(self) -> int:
+        """Returns the chain ID used for signing replay-protected transactions."""
+        return self._backend.chain_id
 
-    def gas_price(self) -> int:
+    def eth_gas_price(self) -> int:
+        """Returns an estimate of the current price per gas in wei."""
         # The specific algorithm is not enforced in the standard,
         # but this is the logic Infura uses. Seems to work for them.
-        block_info = self.get_block_by_number(BlockLabel.LATEST, with_transactions=False)
+        block_info = self.eth_get_block_by_number(BlockLabel.LATEST, with_transactions=False)
 
         # Base fee plus 1 GWei
         return block_info.base_fee_per_gas + 10**9
 
-    def block_number(self) -> int:
-        return self.backend.get_latest_block_number()
+    def eth_block_number(self) -> int:
+        """Returns the number of most recent block."""
+        return self._backend.get_latest_block_number()
 
-    def get_balance(self, address: Address, block: Block) -> int:
-        return self.backend.get_balance(address, block)
+    def eth_get_balance(self, address: Address, block: Block) -> int:
+        """Returns the balance (in wei) of the account of given address."""
+        return self._backend.get_balance(address, block)
 
-    def get_code(self, address: Address, block: Block) -> bytes:
-        return self.backend.get_code(address, block)
+    def eth_get_code(self, address: Address, block: Block) -> bytes:
+        """Returns code of the contract at a given address."""
+        return self._backend.get_code(address, block)
 
-    def get_storage_at(
+    def eth_get_storage_at(
         self,
         address: Address,
         slot: int,
         block: Block,
-    ) -> int:
-        return self.backend.get_storage(address, slot, block)
+    ) -> bytes:
+        """Returns the value from a storage position at a given address."""
+        return self._backend.get_storage(address, slot, block)
 
-    def get_transaction_count(self, address: Address, block: Block) -> int:
-        return self.backend.get_transaction_count(address, block)
+    def eth_get_transaction_count(self, address: Address, block: Block) -> int:
+        """Returns the number of transactions sent from an address."""
+        return self._backend.get_transaction_count(address, block)
 
-    def get_transaction_by_hash(self, transaction_hash: Hash32) -> TransactionInfo:
-        return self.backend.get_transaction_by_hash(transaction_hash)
+    def eth_get_transaction_by_hash(self, transaction_hash: Hash32) -> TransactionInfo:
+        """
+        Returns the information about a transaction requested by transaction hash.
 
-    def get_block_by_number(self, block: Block, *, with_transactions: bool) -> BlockInfo:
-        return self.backend.get_block_by_number(block, with_transactions=with_transactions)
+        Raises :py:class:`TransactionNotFound` if the transaction with this hash
+        has not been included in a block yet.
+        """
+        return self._backend.get_transaction_by_hash(transaction_hash)
 
-    def get_block_by_hash(self, block_hash: Hash32, *, with_transactions: bool) -> BlockInfo:
-        return self.backend.get_block_by_hash(block_hash, with_transactions=with_transactions)
+    def eth_get_block_by_number(self, block: Block, *, with_transactions: bool) -> BlockInfo:
+        """
+        Returns information about a block by block number.
 
-    def get_transaction_receipt(self, transaction_hash: Hash32) -> TransactionReceipt:
-        result = self.backend.get_transaction_receipt(transaction_hash)
-        if result is None:
-            raise TransactionNotFound(
-                f"No transaction found for transaction hash: {encode_hex(transaction_hash)}"
-            )
-        return result
+        Raises :py:class:`BlockNotFound` if the requested block does not exist.
+        """
+        return self._backend.get_block_by_number(block, with_transactions=with_transactions)
 
-    def send_raw_transaction(self, raw_transaction: bytes) -> Hash32:
-        transaction = self.backend.decode_transaction(raw_transaction)
+    def eth_get_block_by_hash(self, block_hash: Hash32, *, with_transactions: bool) -> BlockInfo:
+        """
+        Returns information about a block by hash.
+
+        Raises :py:class:`BlockNotFound` if the requested block does not exist.
+        """
+        return self._backend.get_block_by_hash(block_hash, with_transactions=with_transactions)
+
+    def eth_get_transaction_receipt(self, transaction_hash: Hash32) -> TransactionReceipt:
+        """
+        Returns the receipt of a transaction by transaction hash.
+
+        Raises :py:class:`TransactionNotFound` if the transaction with this hash
+        has not been included in a block yet.
+        """
+        return self._backend.get_transaction_receipt(transaction_hash)
+
+    def eth_send_raw_transaction(self, raw_transaction: bytes) -> Hash32:
+        """
+        Attempts to add a signed RLP-encoded transaction to the current block.
+        Returns the transaction hash on success.
+
+        If the transaction is sent to the EVM but is reverted during execution,
+        raises :py:class:`TransactionReverted`.
+        If there were other problems with the transaction, raises :py:class:`TransactionFailed`.
+        """
+        # TODO: what exception is raised if transaction cannot be decoded or its format is invalid?
+        transaction = self._backend.decode_transaction(raw_transaction)
         transaction_hash = transaction.hash
 
         for tx_filter in self._pending_transaction_filters.values():
             tx_filter.append(transaction_hash)
 
-        self.backend.send_decoded_transaction(transaction)
+        self._backend.send_decoded_transaction(transaction)
 
         if self._auto_mine_transactions:
             self.mine_block()
 
         return transaction_hash
 
-    def call(self, params: EthCallParams, block: Block) -> bytes:
-        return self.backend.call(params, block)
+    def eth_call(self, params: EthCallParams, block: Block) -> bytes:
+        """
+        Executes a new message call immediately without creating a transaction on the blockchain.
 
-    def estimate_gas(self, params: EstimateGasParams, block: Block) -> int:
-        return self.backend.estimate_gas(params, block)
+        If the transaction is sent to the EVM but is reverted during execution,
+        raises :py:class:`TransactionReverted`.
+        If there were other problems with the transaction, raises :py:class:`TransactionFailed`.
+        """
+        return self._backend.call(params, block)
 
-    def new_block_filter(self) -> int:
+    def eth_estimate_gas(self, params: EstimateGasParams, block: Block) -> int:
+        """
+        Generates and returns an estimate of how much gas is necessary to allow
+        the transaction to complete. The transaction will not be added to the blockchain.
+
+        If the transaction is sent to the EVM but is reverted during execution,
+        raises :py:class:`TransactionReverted`.
+        If there were other problems with the transaction, raises :py:class:`TransactionFailed`.
+        """
+        return self._backend.estimate_gas(params, block)
+
+    def eth_new_block_filter(self) -> int:
+        """
+        Creates a filter in the node, to notify when a new block arrives.
+        Returns the identifier of the created filter.
+        """
         filter_id = next(self._filter_counter)
         self._block_filters[filter_id] = []
         return filter_id
 
-    def new_pending_transaction_filter(self) -> int:
+    def eth_new_pending_transaction_filter(self) -> int:
+        """
+        Creates a filter in the node, to notify when new pending transactions arrive.
+        Returns the identifier of the created filter.
+        """
         filter_id = next(self._filter_counter)
         self._pending_transaction_filters[filter_id] = []
         return filter_id
 
-    def new_filter(self, params: FilterParams) -> int:
+    def eth_new_filter(self, params: FilterParams) -> int:
+        """
+        Creates a filter object, based on filter options, to notify when the state changes (logs).
+        Returns the identifier of the created filter.
+        """
         filter_id = next(self._filter_counter)
 
-        current_block_number = self.backend.get_latest_block_number()
+        current_block_number = self._backend.get_latest_block_number()
         log_filter = LogFilter(params, current_block_number)
 
         self._log_filters[filter_id] = log_filter
@@ -259,6 +341,7 @@ class Node:
         return filter_id
 
     def delete_filter(self, filter_id: int) -> None:
+        """Deletes the filter with the given identifier."""
         if filter_id in self._block_filters:
             del self._block_filters[filter_id]
         elif filter_id in self._pending_transaction_filters:
@@ -268,7 +351,16 @@ class Node:
         else:
             raise FilterNotFound("Unknown filter id")
 
-    def get_filter_changes(self, filter_id: int) -> Union[List[LogEntry], List[Hash32]]:
+    def eth_get_filter_changes(self, filter_id: int) -> Union[List[LogEntry], List[Hash32]]:
+        """
+        Polling method for a filter, which returns an array of logs which occurred since last poll.
+
+        .. note::
+
+            This method will not return the events that happened before the filter creation,
+            even if they satisfy the filter predicate.
+            Call :py:meth:`eth_get_filter_logs` to get those.
+        """
         if filter_id in self._block_filters:
             entries = self._block_filters[filter_id]
             self._block_filters[filter_id] = []
@@ -289,21 +381,23 @@ class Node:
     def _get_logs(self, log_filter: LogFilter) -> List[LogEntry]:
         entries = []
 
-        current_block_number = self.backend.get_latest_block_number()
+        current_block_number = self._backend.get_latest_block_number()
 
         for block_number in log_filter.block_number_range(current_block_number):
-            for log_entry in self.backend.get_log_entries_by_block_number(block_number):
+            for log_entry in self._backend.get_log_entries_by_block_number(block_number):
                 if log_filter.matches(log_entry):
                     entries.append(log_entry)
 
         return entries
 
-    def get_logs(self, params: FilterParams) -> List[LogEntry]:
-        current_block_number = self.backend.get_latest_block_number()
+    def eth_get_logs(self, params: FilterParams) -> List[LogEntry]:
+        """Returns an array of all logs matching a given filter object."""
+        current_block_number = self._backend.get_latest_block_number()
         log_filter = LogFilter(params, current_block_number)
         return self._get_logs(log_filter)
 
-    def get_filter_logs(self, filter_id: int) -> List[LogEntry]:
+    def eth_get_filter_logs(self, filter_id: int) -> List[LogEntry]:
+        """Returns an array of all logs matching filter with given id."""
         if filter_id in self._log_filters:
             log_filter = self._log_filters[filter_id]
         else:
