@@ -2,13 +2,11 @@ import itertools
 from typing import Dict, List, Union
 
 from eth_typing import Address, Hash32
-from eth_utils import encode_hex
 
 from ._backend import PyEVMBackend
 from ._exceptions import (
     FilterNotFound,
     SnapshotNotFound,
-    TransactionNotFound,
     ValidationError,
 )
 from ._schema import (
@@ -178,9 +176,7 @@ class Node:
         return snapshot_id
 
     def revert_to_snapshot(self, snapshot_id: int) -> None:
-        """
-        Reverts the node state to the given snapshot.
-        """
+        """Reverts the node state to the given snapshot."""
         try:
             block_hash = self._snapshots[snapshot_id]
         except KeyError as exc:
@@ -345,9 +341,7 @@ class Node:
         return filter_id
 
     def delete_filter(self, filter_id: int) -> None:
-        """
-        Deletes the filter with the given identifier.
-        """
+        """Deletes the filter with the given identifier."""
         if filter_id in self._block_filters:
             del self._block_filters[filter_id]
         elif filter_id in self._pending_transaction_filters:

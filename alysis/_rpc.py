@@ -1,10 +1,8 @@
 """RPC-like API, mimicking the behavior of major Ethereum providers."""
 
-from __future__ import annotations
-
 from contextlib import contextmanager
 from enum import Enum
-from typing import TYPE_CHECKING, Iterator, Optional, Tuple, cast
+from typing import Iterator, Optional, Tuple, cast
 
 from ._exceptions import BlockNotFound, TransactionFailed, TransactionNotFound, TransactionReverted
 from ._node import Node

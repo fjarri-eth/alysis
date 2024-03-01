@@ -2,7 +2,7 @@
 
 import os
 import time
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union, cast
+from typing import Any, Dict, List, Sequence, Tuple, Union, cast
 
 import rlp  # type: ignore[import-untyped]
 from eth.abc import (
@@ -78,7 +78,7 @@ class PyEVMBackend:
 
         blank_root_hash = keccak(_rlp_encode(b""))
 
-        genesis_params: dict[str, Union[int, BlockNumber, bytes, Address, Hash32, None]] = {
+        genesis_params: Dict[str, Union[int, BlockNumber, bytes, Address, Hash32, None]] = {
             "coinbase": ZERO_ADDRESS,
             "difficulty": POST_MERGE_DIFFICULTY,
             "extra_data": b"",
@@ -207,7 +207,7 @@ class PyEVMBackend:
 
     def _get_transaction_by_hash(
         self, transaction_hash: Hash32
-    ) -> tuple[BlockAPI, SignedTransactionAPI, int]:
+    ) -> Tuple[BlockAPI, SignedTransactionAPI, int]:
         head_block = self.chain.get_block()
         for index, transaction in enumerate(head_block.transactions):
             if transaction.hash == transaction_hash:
