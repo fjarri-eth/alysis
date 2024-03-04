@@ -12,9 +12,9 @@ dependencies = [
     "eth-typing>=4",
     "eth-keys>=0.5",
     "rlp>=4",
-    "exceptiongroup>=1",
+    "compages>=0.2.1",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
@@ -69,8 +69,8 @@ warn_unreachable = true
 implicit_reexport = true
 
 [tool.ruff]
-target-version = "py38" # Assume Python 3.8
-line-length = 100 # same as black
+target-version = "py38"
+line-length = 100
 
 [tool.ruff.lint.pyupgrade]
 # Don't suggest fixes not compatible with the specified target-version of Python

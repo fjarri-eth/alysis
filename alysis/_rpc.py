@@ -2,7 +2,9 @@
 
 from contextlib import contextmanager
 from enum import Enum
-from typing import Iterator, Optional, Tuple, cast
+from typing import Iterator, List, Optional, Tuple, Union, cast
+
+from compages import StructuringError, UnstructuringError
 
 from ._exceptions import BlockNotFound, TransactionFailed, TransactionNotFound, TransactionReverted
 from ._node import Node
@@ -14,6 +16,7 @@ from ._schema import (
     EthCallParams,
     FilterParams,
     Hash32,
+    LogEntry,
     structure,
     unstructure,
 )
@@ -64,6 +67,12 @@ class RPCError(Exception):
 def into_rpc_errors() -> Iterator[None]:
     try:
         yield
+
+    except StructuringError as exc:
+        raise RPCError(RPCErrorCode.INVALID_REQUEST, str(exc)) from exc
+
+    except UnstructuringError as exc:
+        raise RPCError(RPCErrorCode.SERVER_ERROR, str(exc)) from exc
 
     except TransactionReverted as exc:
         reason_data = exc.args[0]
@@ -238,12 +247,14 @@ class RPCNode:
 
     def _eth_get_filter_changes(self, params: Tuple[JSON, ...]) -> JSON:
         (filter_id,) = cast(Tuple[int], structure(Tuple[int], params))  # type: ignore[arg-type]
-        return unstructure(self.node.eth_get_filter_changes(filter_id))
+        return unstructure(
+            self.node.eth_get_filter_changes(filter_id), Union[List[LogEntry], List[Hash32]]
+        )
 
     def _eth_get_filter_logs(self, params: Tuple[JSON, ...]) -> JSON:
         (filter_id,) = cast(Tuple[int], structure(Tuple[int], params))  # type: ignore[arg-type]
-        return unstructure(self.node.eth_get_filter_logs(filter_id))
+        return unstructure(self.node.eth_get_filter_logs(filter_id), List[LogEntry])
 
     def _eth_get_logs(self, params: Tuple[JSON, ...]) -> JSON:
         (typed_params,) = cast(Tuple[FilterParams], structure(Tuple[FilterParams], params))  # type: ignore[arg-type]
-        return unstructure(self.node.eth_get_logs(typed_params))
+        return unstructure(self.node.eth_get_logs(typed_params), List[LogEntry])
