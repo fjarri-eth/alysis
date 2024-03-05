@@ -1,7 +1,8 @@
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from types import MappingProxyType
-from typing import Any, List, Mapping, Optional, Sequence, Type, TypeVar, Union, cast
+from types import MappingProxyType, NoneType, UnionType
+from typing import Any, TypeVar, Union, cast
 
 from compages import (
     StructureDictIntoDataclass,
@@ -33,43 +34,43 @@ class BlockLabel(Enum):
     EARLIEST = "earliest"
 
 
-Block = Union[int, BlockLabel]
+Block = int | BlockLabel
 
 
 @dataclass
 class FilterParams:
     # TODO: support block_hash field
-    from_block: Optional[Block] = None
-    to_block: Optional[Block] = None
-    address: Optional[Union[Address, List[Address]]] = None
-    topics: Optional[List[Union[None, Hash32, List[Hash32]]]] = None
+    from_block: None | Block = None
+    to_block: None | Block = None
+    address: None | Address | list[Address] = None
+    topics: None | list[None | Hash32 | list[Hash32]] = None
 
 
 @dataclass
 class EthCallParams:
     to: Address
-    from_: Optional[Address] = None
-    gas: Optional[int] = None
+    from_: None | Address = None
+    gas: None | int = None
     gas_price: int = 0
     value: int = 0
-    data: Optional[bytes] = None
+    data: None | bytes = None
 
 
 @dataclass
 class EstimateGasParams:
     from_: Address
-    to: Optional[Address] = None
-    gas: Optional[int] = None
+    to: None | Address = None
+    gas: None | int = None
     gas_price: int = 0
-    nonce: Optional[int] = None
+    nonce: None | int = None
     value: int = 0
-    data: Optional[bytes] = None
+    data: None | bytes = None
 
 
 @dataclass
 class TransactionInfo:
     chain_id: int
-    block_hash: Optional[Hash32]
+    block_hash: None | Hash32
     block_number: int
     from_: Address
     gas: int
@@ -80,7 +81,7 @@ class TransactionInfo:
     input: bytes
     nonce: int
     to: Address
-    transaction_index: Optional[int]
+    transaction_index: None | int
     type: int
     value: int
     v: int
@@ -96,7 +97,7 @@ class LogEntry:
     data: bytes
     log_index: int
     removed: bool
-    topics: List[Hash32]  # TODO: technically not a hash, but still 32 bytes
+    topics: list[Hash32]  # TODO: technically not a hash, but still 32 bytes
     transaction_index: int
     transaction_hash: Hash32
 
@@ -108,12 +109,12 @@ class TransactionReceipt:
     block_hash: Hash32
     block_number: int
     from_: Address
-    to: Optional[Address]
+    to: None | Address
     cumulative_gas_used: int
     effective_gas_price: int
     gas_used: int
-    contract_address: Optional[Address]
-    logs: List[LogEntry]
+    contract_address: None | Address
+    logs: list[LogEntry]
     logs_bloom: bytes  # 256 bytes
     type: int
     status: int
@@ -122,25 +123,25 @@ class TransactionReceipt:
 @dataclass
 class BlockInfo:
     number: int
-    hash: Optional[Hash32]
+    hash: None | Hash32
     parent_hash: Hash32
-    nonce: Optional[bytes]  # TODO: technically, 8 bytes
+    nonce: None | bytes  # TODO: technically, 8 bytes
     sha3_uncles: Hash32
-    logs_bloom: Optional[bytes]  # TODO: 256 bytes or None if it's a pending block
+    logs_bloom: None | bytes  # TODO: 256 bytes or None if it's a pending block
     transactions_root: Hash32
     state_root: Hash32
     receipts_root: Hash32
-    miner: Optional[Address]
+    miner: None | Address
     difficulty: int
-    total_difficulty: Optional[int]
+    total_difficulty: None | int
     extra_data: bytes
     size: int
     gas_limit: int
     gas_used: int
     base_fee_per_gas: int
     timestamp: int
-    transactions: Union[List[TransactionInfo], List[Hash32]]
-    uncles: List[Hash32]
+    transactions: list[TransactionInfo] | list[Hash32]
+    uncles: list[Hash32]
 
     def is_pending(self) -> bool:
         return self.hash is None
@@ -221,8 +222,9 @@ STRUCTURER = Structurer(
         bytes: structure_into_bytes,
         list: structure_into_list,
         tuple: structure_into_tuple,
+        UnionType: structure_into_union,
         Union: structure_into_union,
-        type(None): structure_into_none,
+        NoneType: structure_into_none,
         BlockLabel: structure_into_block,
     },
     [StructureDictIntoDataclass(to_camel_case)],
@@ -233,21 +235,22 @@ UNSTRUCTURER = Unstructurer(
         int: unstructure_int_to_hex,
         bytes: unstructure_bytes_to_hex,
         bool: unstructure_as_bool,
-        type(None): unstructure_as_none,
+        NoneType: unstructure_as_none,
         list: unstructure_as_list,
+        UnionType: unstructure_as_union,
         Union: unstructure_as_union,
     },
     [UnstructureDataclassToDict(to_camel_case)],
 )
 
 
-JSON = Union[bool, int, float, str, None, Sequence["JSON"], Mapping[str, "JSON"]]
+JSON = None | bool | int | float | str | Sequence["JSON"] | Mapping[str, "JSON"]
 
 
 _T = TypeVar("_T")
 
 
-def structure(structure_into: Type[_T], obj: JSON) -> _T:
+def structure(structure_into: type[_T], obj: JSON) -> _T:
     return STRUCTURER.structure_into(structure_into, obj)
 
 

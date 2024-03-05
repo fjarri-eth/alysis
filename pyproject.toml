@@ -69,7 +69,7 @@ warn_unreachable = true
 implicit_reexport = true
 
 [tool.ruff]
-target-version = "py38"
+target-version = "py310"
 line-length = 100
 
 [tool.ruff.lint.pyupgrade]
@@ -91,9 +91,6 @@ ignore = [
     "ANN204",
     # The type of `cls` in classmethods is derived automatically.
     "ANN102",
-    # `Tuple` is deprecated since Python 3.9, but we still support 3.8.
-    # When we only support 3.9+, use `tuple` instead and remove this ignore.
-    "FA100",
     # Doesn't mesh well with the way `black` puts the final parenthesis on a separate line
     # in functions with one parameter and a long argument.
     "COM812",
