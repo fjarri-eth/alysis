@@ -1,5 +1,4 @@
 import itertools
-from typing import Dict, List, Union
 
 from eth_typing import Address, Hash32
 
@@ -73,7 +72,7 @@ class LogFilter:
 
         # TODO: what's the behavior if the length of topics in the filter
         # is larger than that in the log? Just mismatch? Error?
-        for topics, logged_topic in zip(self._topics, entry.topics):
+        for topics, logged_topic in zip(self._topics, entry.topics, strict=False):
             if topics is None:
                 continue
 
@@ -118,14 +117,14 @@ class Node:
 
         # filter tracking
         self._filter_counter = itertools.count()
-        self._log_filters: Dict[int, LogFilter] = {}
-        self._log_filter_entries: Dict[int, List[LogEntry]] = {}
-        self._block_filters: Dict[int, List[Hash32]] = {}
-        self._pending_transaction_filters: Dict[int, List[Hash32]] = {}
+        self._log_filters: dict[int, LogFilter] = {}
+        self._log_filter_entries: dict[int, list[LogEntry]] = {}
+        self._block_filters: dict[int, list[Hash32]] = {}
+        self._pending_transaction_filters: dict[int, list[Hash32]] = {}
 
         # snapshot tracking
         self._snapshot_counter = itertools.count()
-        self._snapshots: Dict[int, Hash32] = {}
+        self._snapshots: dict[int, Hash32] = {}
 
     def advance_time(self, to_timestamp: int) -> None:
         """Advances the chain time to the given timestamp and mines a new block."""
@@ -351,7 +350,7 @@ class Node:
         else:
             raise FilterNotFound("Unknown filter id")
 
-    def eth_get_filter_changes(self, filter_id: int) -> Union[List[LogEntry], List[Hash32]]:
+    def eth_get_filter_changes(self, filter_id: int) -> list[LogEntry] | list[Hash32]:
         """
         Polling method for a filter, which returns an array of logs which occurred since last poll.
 
@@ -378,7 +377,7 @@ class Node:
 
         raise FilterNotFound("Unknown filter id")
 
-    def _get_logs(self, log_filter: LogFilter) -> List[LogEntry]:
+    def _get_logs(self, log_filter: LogFilter) -> list[LogEntry]:
         entries = []
 
         current_block_number = self._backend.get_latest_block_number()
@@ -390,13 +389,13 @@ class Node:
 
         return entries
 
-    def eth_get_logs(self, params: FilterParams) -> List[LogEntry]:
+    def eth_get_logs(self, params: FilterParams) -> list[LogEntry]:
         """Returns an array of all logs matching a given filter object."""
         current_block_number = self._backend.get_latest_block_number()
         log_filter = LogFilter(params, current_block_number)
         return self._get_logs(log_filter)
 
-    def eth_get_filter_logs(self, filter_id: int) -> List[LogEntry]:
+    def eth_get_filter_logs(self, filter_id: int) -> list[LogEntry]:
         """Returns an array of all logs matching filter with given id."""
         if filter_id in self._log_filters:
             log_filter = self._log_filters[filter_id]

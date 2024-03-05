@@ -2,7 +2,8 @@
 
 import os
 import time
-from typing import Any, Dict, List, Sequence, Tuple, Union, cast
+from collections.abc import Sequence
+from typing import Any, cast
 
 import rlp  # type: ignore[import-untyped]
 from eth.abc import (
@@ -78,7 +79,7 @@ class PyEVMBackend:
 
         blank_root_hash = keccak(_rlp_encode(b""))
 
-        genesis_params: Dict[str, Union[int, BlockNumber, bytes, Address, Hash32, None]] = {
+        genesis_params: dict[str, None | int | BlockNumber | bytes | Address | Hash32] = {
             "coinbase": ZERO_ADDRESS,
             "difficulty": POST_MERGE_DIFFICULTY,
             "extra_data": b"",
@@ -157,7 +158,7 @@ class PyEVMBackend:
         # fallback
         raise BlockNotFound(f"No block found for block number: {block}")
 
-    def _get_log_entries(self, block: BlockAPI) -> List[LogEntry]:
+    def _get_log_entries(self, block: BlockAPI) -> list[LogEntry]:
         receipts = block.get_receipts(self.chain.chaindb)
         entries = []
         for transaction_index, transaction in enumerate(block.transactions):
@@ -168,10 +169,10 @@ class PyEVMBackend:
                 )
         return entries
 
-    def get_log_entries_by_block_hash(self, block_hash: Hash32) -> List[LogEntry]:
+    def get_log_entries_by_block_hash(self, block_hash: Hash32) -> list[LogEntry]:
         return self._get_log_entries(self._get_block_by_hash(block_hash))
 
-    def get_log_entries_by_block_number(self, block: Block) -> List[LogEntry]:
+    def get_log_entries_by_block_number(self, block: Block) -> list[LogEntry]:
         return self._get_log_entries(self._get_block_by_number(block))
 
     def get_latest_block_hash(self) -> Hash32:
@@ -207,7 +208,7 @@ class PyEVMBackend:
 
     def _get_transaction_by_hash(
         self, transaction_hash: Hash32
-    ) -> Tuple[BlockAPI, SignedTransactionAPI, int]:
+    ) -> tuple[BlockAPI, SignedTransactionAPI, int]:
         head_block = self.chain.get_block()
         for index, transaction in enumerate(head_block.transactions):
             if transaction.hash == transaction_hash:
@@ -352,7 +353,7 @@ class PyEVMBackend:
 def make_block_info(
     chain_id: int, block: BlockAPI, *, with_transactions: bool, is_pending: bool
 ) -> BlockInfo:
-    transactions: Union[List[Hash32], List[TransactionInfo]]
+    transactions: list[Hash32] | list[TransactionInfo]
     if with_transactions:
         transactions = [
             make_transaction_info(chain_id, block, transaction, index, is_pending=is_pending)
