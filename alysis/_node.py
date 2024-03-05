@@ -70,7 +70,7 @@ class LogFilter:
         if self._topics is None:
             return True
 
-        # TODO: what's the behavior if the length of topics in the filter
+        # TODO (#12): what's the behavior if the length of topics in the filter
         # is larger than that in the log? Just mismatch? Error?
         for topics, logged_topic in zip(self._topics, entry.topics, strict=False):
             if topics is None:
@@ -183,11 +183,11 @@ class Node:
         else:
             self._backend.revert_to_block(block_hash)
 
-        # TODO: revert the filter state
+        # TODO (#9): revert the filter state
 
     def net_version(self) -> int:
         """Returns the current network id."""
-        # TODO: make adjustable
+        # TODO (#10): make adjustable
         return 1
 
     def eth_chain_id(self) -> int:
@@ -271,7 +271,8 @@ class Node:
         raises :py:class:`TransactionReverted`.
         If there were other problems with the transaction, raises :py:class:`TransactionFailed`.
         """
-        # TODO: what exception is raised if transaction cannot be decoded or its format is invalid?
+        # TODO (#11): what exception is raised if transaction cannot be decoded
+        # or its format is invalid?
         transaction = self._backend.decode_transaction(raw_transaction)
         transaction_hash = transaction.hash
 

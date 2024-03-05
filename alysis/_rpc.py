@@ -140,8 +140,6 @@ class RPCNode:
             return methods[method_name](params)
 
     def _net_version(self, params: tuple[JSON, ...]) -> JSON:
-        # TODO: currently `mypy` has problems with generic Tuples in Type:
-        # https://github.com/python/mypy/issues/16935
         _ = structure(tuple[()], params)
         # Note: it's not hex encoded, but just stringified!
         return str(self.node.net_version())
@@ -155,6 +153,9 @@ class RPCNode:
         return unstructure(self.node.eth_block_number())
 
     def _eth_get_balance(self, params: tuple[JSON, ...]) -> JSON:
+        # Currently `mypy` has problems with generic Tuples in Type:
+        # https://github.com/python/mypy/issues/16935
+        # So we have to cast manually here, and in similar situations below.
         address, block = cast(tuple[Address, Block], structure(tuple[Address, Block], params))
         return unstructure(self.node.eth_get_balance(address, block))
 

@@ -98,7 +98,7 @@ class PyEVMBackend:
             "nonce": 0,
         }
 
-        # TODO: this seems to be hardcoded in PyEVM somehow?
+        # This seems to be hardcoded in PyEVM somehow.
         root_private_key = KeyAPI().PrivateKey(b"\x00" * 31 + b"\x01")
 
         genesis_state = {Address(root_private_key.public_key.to_canonical_address()): account_state}
@@ -214,7 +214,7 @@ class PyEVMBackend:
             if transaction.hash == transaction_hash:
                 return head_block, transaction, index
         for block_number in range(head_block.number - 1, -1, -1):
-            # TODO: the chain should be able to look these up directly by hash...
+            # TODO (#13): the chain should be able to look these up directly by hash...
             block = self.chain.get_canonical_block_by_number(BlockNumber(block_number))
             for index, transaction in enumerate(block.transactions):
                 if transaction.hash == transaction_hash:
@@ -284,7 +284,7 @@ class PyEVMBackend:
         try:
             self.chain.apply_transaction(evm_transaction)
         except ValidationError as exc:
-            # TODO: Should it raise `ValidationError` instead?
+            # TODO (#14): Should it raise `ValidationError` instead?
             raise TransactionFailed(exc.args[0]) from exc
         return evm_transaction.hash
 
@@ -311,6 +311,7 @@ class PyEVMBackend:
             return self.chain.estimate_gas(cast(SignedTransactionAPI, spoofed_transaction), header)
 
         except ValidationError as exc:
+            # TODO (#14): Should it raise `ValidationError` instead?
             raise TransactionFailed(exc.args[0]) from exc
 
         except Revert as exc:
@@ -376,10 +377,10 @@ def make_block_info(
         receipts_root=block.header.receipt_root,
         miner=block.header.coinbase if not is_pending else None,
         difficulty=block.header.difficulty if not is_pending else 0,
-        # TODO: actual total difficulty
+        # TODO (#15): actual total difficulty
         total_difficulty=block.header.difficulty if not is_pending else None,
         extra_data=block.header.extra_data.rjust(32, b"\x00"),
-        size=len(_rlp_encode(block)),  # TODO: is this right?
+        size=len(_rlp_encode(block)),  # TODO (#16): is this right?
         gas_limit=block.header.gas_limit,
         gas_used=block.header.gas_used,
         # Note: this appears after EIP-1559 upgrade. Ethereum.org does not list this field,

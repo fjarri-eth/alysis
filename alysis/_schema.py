@@ -39,7 +39,7 @@ Block = int | BlockLabel
 
 @dataclass
 class FilterParams:
-    # TODO: support block_hash field
+    # TODO (#7): support block_hash field
     from_block: None | Block = None
     to_block: None | Block = None
     address: None | Address | list[Address] = None
@@ -97,7 +97,7 @@ class LogEntry:
     data: bytes
     log_index: int
     removed: bool
-    topics: list[Hash32]  # TODO: technically not a hash, but still 32 bytes
+    topics: list[Hash32]  # TODO (#8): technically not a hash, but still 32 bytes
     transaction_index: int
     transaction_hash: Hash32
 
@@ -125,9 +125,9 @@ class BlockInfo:
     number: int
     hash: None | Hash32
     parent_hash: Hash32
-    nonce: None | bytes  # TODO: technically, 8 bytes
+    nonce: None | bytes  # TODO (#8): technically, 8 bytes
     sha3_uncles: Hash32
-    logs_bloom: None | bytes  # TODO: 256 bytes or None if it's a pending block
+    logs_bloom: None | bytes  # TODO (#8): 256 bytes or None if it's a pending block
     transactions_root: Hash32
     state_root: Hash32
     receipts_root: Hash32
