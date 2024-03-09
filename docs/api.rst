@@ -63,8 +63,6 @@ Exceptions
 
 .. autoclass:: FilterNotFound()
 
-.. autoclass:: SnapshotNotFound()
-
 .. autoclass:: TransactionFailed()
 
 .. autoclass:: TransactionReverted()
