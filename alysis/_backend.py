@@ -42,7 +42,7 @@ from ._exceptions import (
     TransactionReverted,
     ValidationError,
 )
-from ._schema import (
+from .schema import (
     Address,
     Block,
     BlockInfo,

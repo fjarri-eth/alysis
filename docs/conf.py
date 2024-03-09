@@ -75,5 +75,4 @@ python_use_unqualified_type_names = True
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
-    "eth_typing": ("https://eth-typing.readthedocs.io/en/stable/", None),
 }

@@ -8,7 +8,7 @@ from ._exceptions import (
     FilterNotFound,
     ValidationError,
 )
-from ._schema import (
+from .schema import (
     Address,
     Block,
     BlockInfo,
