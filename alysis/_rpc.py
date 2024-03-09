@@ -13,7 +13,7 @@ from ._exceptions import (
     ValidationError,
 )
 from ._node import Node
-from ._schema import (
+from .schema import (
     JSON,
     Address,
     Block,

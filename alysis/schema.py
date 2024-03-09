@@ -1,8 +1,10 @@
+"""Ethereum RPC schema."""
+
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType, NoneType, UnionType
-from typing import Any, TypeVar, Union, cast
+from typing import Any, NewType, TypeVar, Union, cast
 
 from compages import (
     StructureDictIntoDataclass,
@@ -23,10 +25,26 @@ from compages import (
     unstructure_as_none,
     unstructure_as_union,
 )
-from eth_typing import Address, Hash32
+
+Address = NewType("Address", bytes)
+"""Ethereum address (20 bytes)."""
+
+Hash32 = NewType("Hash32", bytes)
+"""A keccak hash (32 bytes)."""
+
+LogTopic = NewType("LogTopic", bytes)
+"""Encoded log topic (32 bytes)."""
+
+BlockNonce = NewType("BlockNonce", bytes)
+"""Block nonce (8 bytes)."""
+
+LogsBloom = NewType("LogsBloom", bytes)
+"""Bloom filter for logs (256 bytes)."""
 
 
 class BlockLabel(Enum):
+    """Block label."""
+
     LATEST = "latest"
     PENDING = "pending"
     SAFE = "safe"
@@ -39,21 +57,27 @@ Block = int | BlockLabel
 
 @dataclass
 class FilterParams:
+    """Filter parameters for ``eth_getLogs`` or ``eth_newFilter``."""
+
     from_block: None | Block = None
     to_block: None | Block = None
     address: None | Address | list[Address] = None
-    topics: None | list[None | Hash32 | list[Hash32]] = None
+    topics: None | list[None | LogTopic | list[LogTopic]] = None
 
 
 @dataclass
 class FilterParamsEIP234:
+    """Alternative filter parameters for ``eth_getLogs`` (introduced in EIP-234)."""
+
     block_hash: Hash32
     address: None | Address | list[Address] = None
-    topics: None | list[None | Hash32 | list[Hash32]] = None
+    topics: None | list[None | LogTopic | list[LogTopic]] = None
 
 
 @dataclass
 class EthCallParams:
+    """Transaction fields for ``eth_call``."""
+
     to: Address
     from_: None | Address = None
     gas: None | int = None
@@ -64,6 +88,8 @@ class EthCallParams:
 
 @dataclass
 class EstimateGasParams:
+    """Transaction fields for ``eth_estimateGas``."""
+
     from_: Address
     to: None | Address = None
     gas: None | int = None
@@ -75,6 +101,8 @@ class EstimateGasParams:
 
 @dataclass
 class TransactionInfo:
+    """Transaction info."""
+
     chain_id: int
     block_hash: None | Hash32
     block_number: int
@@ -97,19 +125,23 @@ class TransactionInfo:
 
 @dataclass
 class LogEntry:
+    """Log entry."""
+
     address: Address
     block_hash: Hash32
     block_number: int
     data: bytes
     log_index: int
     removed: bool
-    topics: list[Hash32]  # TODO (#8): technically not a hash, but still 32 bytes
+    topics: list[LogTopic]
     transaction_index: int
     transaction_hash: Hash32
 
 
 @dataclass
 class TransactionReceipt:
+    """Transaction receipt."""
+
     transaction_hash: Hash32
     transaction_index: int
     block_hash: Hash32
@@ -121,19 +153,21 @@ class TransactionReceipt:
     gas_used: int
     contract_address: None | Address
     logs: list[LogEntry]
-    logs_bloom: bytes  # 256 bytes
+    logs_bloom: LogsBloom
     type: int
     status: int
 
 
 @dataclass
 class BlockInfo:
+    """Block info."""
+
     number: int
     hash: None | Hash32
     parent_hash: Hash32
-    nonce: None | bytes  # TODO (#8): technically, 8 bytes
+    nonce: None | BlockNonce
     sha3_uncles: Hash32
-    logs_bloom: None | bytes  # TODO (#8): 256 bytes or None if it's a pending block
+    logs_bloom: None | LogsBloom
     transactions_root: Hash32
     state_root: Hash32
     receipts_root: Hash32
@@ -149,32 +183,29 @@ class BlockInfo:
     transactions: list[TransactionInfo] | list[Hash32]
     uncles: list[Hash32]
 
-    def is_pending(self) -> bool:
-        return self.hash is None
-
 
 @simple_structure
-def structure_into_address(val: Any) -> Address:
-    res = _structure_into_bytes(val)
+def _structure_into_address(val: Any) -> Address:
+    res = _structure_into_bytes_common(val)
     if len(res) != 20:
         raise StructuringError("The value must encode 20 bytes")
     return Address(res)
 
 
 @simple_structure
-def structure_into_hash32(val: Any) -> Hash32:
-    res = _structure_into_bytes(val)
+def _structure_into_hash32(val: Any) -> Hash32:
+    res = _structure_into_bytes_common(val)
     if len(res) != 32:
         raise StructuringError("The value must encode 30 bytes")
     return Hash32(res)
 
 
 @simple_structure
-def structure_into_bytes(val: Any) -> bytes:
-    return _structure_into_bytes(val)
-
-
 def _structure_into_bytes(val: Any) -> bytes:
+    return _structure_into_bytes_common(val)
+
+
+def _structure_into_bytes_common(val: Any) -> bytes:
     if not isinstance(val, str) or not val.startswith("0x"):
         raise StructuringError("The value must be a 0x-prefixed hex-encoded data")
     try:
@@ -184,14 +215,14 @@ def _structure_into_bytes(val: Any) -> bytes:
 
 
 @simple_structure
-def structure_into_int(val: Any) -> int:
+def _structure_into_int(val: Any) -> int:
     if not isinstance(val, str) or not val.startswith("0x"):
         raise StructuringError("The value must be a 0x-prefixed hex-encoded integer")
     return int(val, 0)
 
 
 @simple_structure
-def structure_into_block(val: Any) -> BlockLabel:
+def _structure_into_block(val: Any) -> BlockLabel:
     try:
         return BlockLabel(val)
     except ValueError as exc:
@@ -199,20 +230,20 @@ def structure_into_block(val: Any) -> BlockLabel:
 
 
 @simple_unstructure
-def unstructure_int_to_hex(obj: int) -> str:
+def _unstructure_int_to_hex(obj: int) -> str:
     if not isinstance(obj, int):
         raise UnstructuringError("The value must be an integer")
     return hex(obj)
 
 
 @simple_unstructure
-def unstructure_bytes_to_hex(obj: bytes) -> str:
+def _unstructure_bytes_to_hex(obj: bytes) -> str:
     if not isinstance(obj, bytes):
         raise UnstructuringError("The value must be a bytestring")
     return "0x" + obj.hex()
 
 
-def to_camel_case(name: str, _metadata: MappingProxyType[Any, Any]) -> str:
+def _to_camel_case(name: str, _metadata: MappingProxyType[Any, Any]) -> str:
     if name.endswith("_"):
         name = name[:-1]
     parts = name.split("_")
@@ -221,45 +252,48 @@ def to_camel_case(name: str, _metadata: MappingProxyType[Any, Any]) -> str:
 
 STRUCTURER = Structurer(
     {
-        Address: structure_into_address,
-        Hash32: structure_into_hash32,
-        int: structure_into_int,
+        Address: _structure_into_address,
+        Hash32: _structure_into_hash32,
+        int: _structure_into_int,
         bool: structure_into_bool,
-        bytes: structure_into_bytes,
+        bytes: _structure_into_bytes,
         list: structure_into_list,
         tuple: structure_into_tuple,
         UnionType: structure_into_union,
         Union: structure_into_union,
         NoneType: structure_into_none,
-        BlockLabel: structure_into_block,
+        BlockLabel: _structure_into_block,
     },
-    [StructureDictIntoDataclass(to_camel_case)],
+    [StructureDictIntoDataclass(_to_camel_case)],
 )
 
 UNSTRUCTURER = Unstructurer(
     {
-        int: unstructure_int_to_hex,
-        bytes: unstructure_bytes_to_hex,
+        int: _unstructure_int_to_hex,
+        bytes: _unstructure_bytes_to_hex,
         bool: unstructure_as_bool,
         NoneType: unstructure_as_none,
         list: unstructure_as_list,
         UnionType: unstructure_as_union,
         Union: unstructure_as_union,
     },
-    [UnstructureDataclassToDict(to_camel_case)],
+    [UnstructureDataclassToDict(_to_camel_case)],
 )
 
 
 JSON = None | bool | int | float | str | Sequence["JSON"] | Mapping[str, "JSON"]
+"""Values serializable to JSON."""
 
 
 _T = TypeVar("_T")
 
 
 def structure(structure_into: type[_T], obj: JSON) -> _T:
+    """Structures incoming JSON data."""
     return STRUCTURER.structure_into(structure_into, obj)
 
 
 def unstructure(obj: Any, unstructure_as: Any = None) -> JSON:
+    """Unstructures node results into JSON-serializable values."""
     # The result is `JSON` by virtue of the hooks we defined
     return cast(JSON, UNSTRUCTURER.unstructure_as(unstructure_as or type(obj), obj))

@@ -3,14 +3,13 @@ from collections.abc import Iterator
 from copy import deepcopy
 from typing import Any
 
-from eth_typing import Address, Hash32
-
 from ._backend import PyEVMBackend
 from ._exceptions import (
     FilterNotFound,
     ValidationError,
 )
-from ._schema import (
+from .schema import (
+    Address,
     Block,
     BlockInfo,
     BlockLabel,
@@ -18,6 +17,7 @@ from ._schema import (
     EthCallParams,
     FilterParams,
     FilterParamsEIP234,
+    Hash32,
     LogEntry,
     TransactionInfo,
     TransactionReceipt,
@@ -60,7 +60,7 @@ class LogFilter:
         to_block = self._to_block if self._to_block is not None else current_block_number
         return range(self._from_block, to_block + 1)
 
-    def matches(self, entry: LogEntry) -> bool:
+    def matches(self, entry: LogEntry) -> bool:  # noqa: PLR0911
         if entry.block_number < self._from_block:
             return False
 
@@ -73,8 +73,14 @@ class LogFilter:
         if self._topics is None:
             return True
 
-        # TODO (#12): what's the behavior if the length of topics in the filter
-        # is larger than that in the log? Just mismatch? Error?
+        # If we filter by more topics than there is in the entry,
+        # it's an automatic mismatch.
+        if len(self._topics) > len(entry.topics):
+            return False
+
+        # But note that if `self._topics` is shorter than `entry.topics`
+        # it is equivalent to the missing values being `None`,
+        # that is, matching anything.
         for topics, logged_topic in zip(self._topics, entry.topics, strict=False):
             if topics is None:
                 continue
@@ -105,14 +111,16 @@ class Node:
 
     def __init__(
         self,
+        *,
         root_balance_wei: int,
         chain_id: int = DEFAULT_ID,
-        *,
+        net_version: int = 1,
         auto_mine_transactions: bool = True,
     ):
         backend = PyEVMBackend(root_balance_wei=root_balance_wei, chain_id=chain_id)
         self._initialize(
             backend=backend,
+            net_version=net_version,
             auto_mine_transactions=auto_mine_transactions,
             filter_counter=itertools.count(),
             log_filters={},
@@ -124,6 +132,7 @@ class Node:
     def _initialize(
         self,
         backend: PyEVMBackend,
+        net_version: int,
         auto_mine_transactions: bool,  # noqa: FBT001
         filter_counter: Iterator[int],
         log_filters: dict[int, LogFilter],
@@ -134,6 +143,7 @@ class Node:
         self.root_private_key = backend.root_private_key
         self._backend = backend
         self._auto_mine_transactions = auto_mine_transactions
+        self._net_version = net_version
 
         # filter tracking
         self._filter_counter = filter_counter
@@ -150,6 +160,7 @@ class Node:
         obj = object.__new__(self.__class__)
         obj._initialize(  # noqa: SLF001
             backend=deepcopy(self._backend, memo),
+            net_version=self._net_version,
             auto_mine_transactions=self._auto_mine_transactions,
             filter_counter=deepcopy(self._filter_counter, memo),
             # Shallow copy is enough, LogFilter objects are immutable
@@ -192,8 +203,7 @@ class Node:
 
     def net_version(self) -> int:
         """Returns the current network id."""
-        # TODO (#10): make adjustable
-        return 1
+        return self._net_version
 
     def eth_chain_id(self) -> int:
         """Returns the chain ID used for signing replay-protected transactions."""
@@ -272,14 +282,13 @@ class Node:
         Attempts to add a signed RLP-encoded transaction to the current block.
         Returns the transaction hash on success.
 
+        If the transaction is invalid, raises :py:class:`ValidationError`.
         If the transaction is sent to the EVM but is reverted during execution,
         raises :py:class:`TransactionReverted`.
         If there were other problems with the transaction, raises :py:class:`TransactionFailed`.
         """
-        # TODO (#11): what exception is raised if transaction cannot be decoded
-        # or its format is invalid?
         transaction = self._backend.decode_transaction(raw_transaction)
-        transaction_hash = transaction.hash
+        transaction_hash = Hash32(transaction.hash)
 
         for tx_filter in self._pending_transaction_filters.values():
             tx_filter.append(transaction_hash)
@@ -295,6 +304,7 @@ class Node:
         """
         Executes a new message call immediately without creating a transaction on the blockchain.
 
+        If the transaction is invalid, raises :py:class:`ValidationError`.
         If the transaction is sent to the EVM but is reverted during execution,
         raises :py:class:`TransactionReverted`.
         If there were other problems with the transaction, raises :py:class:`TransactionFailed`.
@@ -306,6 +316,7 @@ class Node:
         Generates and returns an estimate of how much gas is necessary to allow
         the transaction to complete. The transaction will not be added to the blockchain.
 
+        If the transaction is invalid, raises :py:class:`ValidationError`.
         If the transaction is sent to the EVM but is reverted during execution,
         raises :py:class:`TransactionReverted`.
         If there were other problems with the transaction, raises :py:class:`TransactionFailed`.
