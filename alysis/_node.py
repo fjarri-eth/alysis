@@ -3,14 +3,13 @@ from collections.abc import Iterator
 from copy import deepcopy
 from typing import Any
 
-from eth_typing import Address, Hash32
-
 from ._backend import PyEVMBackend
 from ._exceptions import (
     FilterNotFound,
     ValidationError,
 )
 from ._schema import (
+    Address,
     Block,
     BlockInfo,
     BlockLabel,
@@ -18,6 +17,7 @@ from ._schema import (
     EthCallParams,
     FilterParams,
     FilterParamsEIP234,
+    Hash32,
     LogEntry,
     TransactionInfo,
     TransactionReceipt,
@@ -279,7 +279,7 @@ class Node:
         # TODO (#11): what exception is raised if transaction cannot be decoded
         # or its format is invalid?
         transaction = self._backend.decode_transaction(raw_transaction)
-        transaction_hash = transaction.hash
+        transaction_hash = Hash32(transaction.hash)
 
         for tx_filter in self._pending_transaction_filters.values():
             tx_filter.append(transaction_hash)

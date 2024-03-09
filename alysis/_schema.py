@@ -2,7 +2,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType, NoneType, UnionType
-from typing import Any, TypeVar, Union, cast
+from typing import Any, NewType, TypeVar, Union, cast
 
 from compages import (
     StructureDictIntoDataclass,
@@ -23,7 +23,16 @@ from compages import (
     unstructure_as_none,
     unstructure_as_union,
 )
-from eth_typing import Address, Hash32
+
+Address = NewType("Address", bytes)
+
+Hash32 = NewType("Hash32", bytes)
+
+LogTopic = NewType("LogTopic", bytes)  # 32 bytes
+
+BlockNonce = NewType("BlockNonce", bytes)  # 8 bytes
+
+LogsBloom = NewType("LogsBloom", bytes)  # 256 bytes
 
 
 class BlockLabel(Enum):
@@ -42,14 +51,14 @@ class FilterParams:
     from_block: None | Block = None
     to_block: None | Block = None
     address: None | Address | list[Address] = None
-    topics: None | list[None | Hash32 | list[Hash32]] = None
+    topics: None | list[None | LogTopic | list[LogTopic]] = None
 
 
 @dataclass
 class FilterParamsEIP234:
     block_hash: Hash32
     address: None | Address | list[Address] = None
-    topics: None | list[None | Hash32 | list[Hash32]] = None
+    topics: None | list[None | LogTopic | list[LogTopic]] = None
 
 
 @dataclass
@@ -103,7 +112,7 @@ class LogEntry:
     data: bytes
     log_index: int
     removed: bool
-    topics: list[Hash32]  # TODO (#8): technically not a hash, but still 32 bytes
+    topics: list[LogTopic]
     transaction_index: int
     transaction_hash: Hash32
 
@@ -121,7 +130,7 @@ class TransactionReceipt:
     gas_used: int
     contract_address: None | Address
     logs: list[LogEntry]
-    logs_bloom: bytes  # 256 bytes
+    logs_bloom: LogsBloom
     type: int
     status: int
 
@@ -131,9 +140,9 @@ class BlockInfo:
     number: int
     hash: None | Hash32
     parent_hash: Hash32
-    nonce: None | bytes  # TODO (#8): technically, 8 bytes
+    nonce: None | BlockNonce
     sha3_uncles: Hash32
-    logs_bloom: None | bytes  # TODO (#8): 256 bytes or None if it's a pending block
+    logs_bloom: None | LogsBloom
     transactions_root: Hash32
     state_root: Hash32
     receipts_root: Hash32
