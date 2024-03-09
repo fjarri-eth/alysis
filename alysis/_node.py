@@ -282,12 +282,11 @@ class Node:
         Attempts to add a signed RLP-encoded transaction to the current block.
         Returns the transaction hash on success.
 
+        If the transaction is invalid, raises :py:class:`ValidationError`.
         If the transaction is sent to the EVM but is reverted during execution,
         raises :py:class:`TransactionReverted`.
         If there were other problems with the transaction, raises :py:class:`TransactionFailed`.
         """
-        # TODO (#11): what exception is raised if transaction cannot be decoded
-        # or its format is invalid?
         transaction = self._backend.decode_transaction(raw_transaction)
         transaction_hash = Hash32(transaction.hash)
 
@@ -305,6 +304,7 @@ class Node:
         """
         Executes a new message call immediately without creating a transaction on the blockchain.
 
+        If the transaction is invalid, raises :py:class:`ValidationError`.
         If the transaction is sent to the EVM but is reverted during execution,
         raises :py:class:`TransactionReverted`.
         If there were other problems with the transaction, raises :py:class:`TransactionFailed`.
@@ -316,6 +316,7 @@ class Node:
         Generates and returns an estimate of how much gas is necessary to allow
         the transaction to complete. The transaction will not be added to the blockchain.
 
+        If the transaction is invalid, raises :py:class:`ValidationError`.
         If the transaction is sent to the EVM but is reverted during execution,
         raises :py:class:`TransactionReverted`.
         If there were other problems with the transaction, raises :py:class:`TransactionFailed`.
