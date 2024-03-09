@@ -5,7 +5,13 @@ from typing import cast
 
 from compages import StructuringError, UnstructuringError
 
-from ._exceptions import BlockNotFound, TransactionFailed, TransactionNotFound, TransactionReverted
+from ._exceptions import (
+    BlockNotFound,
+    TransactionFailed,
+    TransactionNotFound,
+    TransactionReverted,
+    ValidationError,
+)
 from ._node import Node
 from ._schema import (
     JSON,
@@ -102,7 +108,7 @@ class RPCNode:
         try:
             return self._methods[method_name](params)
 
-        except StructuringError as exc:
+        except (StructuringError, ValidationError) as exc:
             raise RPCError(RPCErrorCode.INVALID_PARAMETER, str(exc)) from exc
 
         except UnstructuringError as exc:

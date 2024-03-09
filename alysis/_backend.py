@@ -31,13 +31,14 @@ from eth.vm.spoof import SpoofTransaction
 from eth_keys import KeyAPI
 from eth_typing import Address, BlockNumber, Hash32
 from eth_utils import encode_hex, keccak
-from eth_utils.exceptions import ValidationError
+from eth_utils.exceptions import ValidationError as EthValidationError
 
 from ._exceptions import (
     BlockNotFound,
     TransactionFailed,
     TransactionNotFound,
     TransactionReverted,
+    ValidationError,
 )
 from ._schema import (
     Block,
@@ -280,14 +281,16 @@ class PyEVMBackend:
 
     def decode_transaction(self, raw_transaction: bytes) -> SignedTransactionAPI:
         vm = self._get_vm_for_block_number(BlockLabel.LATEST)
-        return vm.get_transaction_builder().decode(raw_transaction)
+        try:
+            return vm.get_transaction_builder().decode(raw_transaction)
+        except rlp.exceptions.DecodingError as exc:
+            raise ValidationError(f"Could not decode transaction: {exc}") from exc
 
     def send_decoded_transaction(self, evm_transaction: SignedTransactionAPI) -> bytes:
         try:
             self.chain.apply_transaction(evm_transaction)
-        except ValidationError as exc:
-            # TODO (#14): Should it raise `ValidationError` instead?
-            raise TransactionFailed(exc.args[0]) from exc
+        except EthValidationError as exc:
+            raise ValidationError(f"Invalid transaction: {exc}") from exc
         return evm_transaction.hash
 
     def estimate_gas(self, params: EstimateGasParams, block: Block) -> int:
@@ -312,9 +315,8 @@ class PyEVMBackend:
             # but has the same duck type.
             return self.chain.estimate_gas(cast(SignedTransactionAPI, spoofed_transaction), header)
 
-        except ValidationError as exc:
-            # TODO (#14): Should it raise `ValidationError` instead?
-            raise TransactionFailed(exc.args[0]) from exc
+        except EthValidationError as exc:
+            raise ValidationError(f"Invalid transaction: {exc}") from exc
 
         except Revert as exc:
             raise TransactionReverted(exc.args[0]) from exc
@@ -343,8 +345,8 @@ class PyEVMBackend:
                 cast(SignedTransactionAPI, spoofed_transaction), header
             )
 
-        except ValidationError as exc:
-            raise TransactionFailed(exc.args[0]) from exc
+        except EthValidationError as exc:
+            raise ValidationError(f"Invalid transaction: {exc}") from exc
 
         except Revert as exc:
             raise TransactionReverted(exc.args[0]) from exc
