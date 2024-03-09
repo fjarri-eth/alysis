@@ -11,12 +11,14 @@ Changed
 - ``RPCErrorCode.INVALID_REQEST`` removed. (PR_20_)
 - Transaction validation errors now raise ``ValidationError`` instead of ``TransactionFailed``. (PR_20_)
 - ``Address`` and ``Hash32`` from ``eth-typing`` are now internal and are replaced with the ones defined in the ``schema`` submodule. (PR_22_)
+- All parameters for ``Node`` are now keyword-only. (PR_22_)
 
 
 Added
 ^^^^^
 
 - Support for ``blockHash`` parameter in ``eth_getLogs``. (PR_21_)
+- ``net_version`` parameters for ``Node``. (PR_22_)
 
 
 Fixed

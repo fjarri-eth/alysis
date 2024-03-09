@@ -105,14 +105,16 @@ class Node:
 
     def __init__(
         self,
+        *,
         root_balance_wei: int,
         chain_id: int = DEFAULT_ID,
-        *,
+        net_version: int = 1,
         auto_mine_transactions: bool = True,
     ):
         backend = PyEVMBackend(root_balance_wei=root_balance_wei, chain_id=chain_id)
         self._initialize(
             backend=backend,
+            net_version=net_version,
             auto_mine_transactions=auto_mine_transactions,
             filter_counter=itertools.count(),
             log_filters={},
@@ -124,6 +126,7 @@ class Node:
     def _initialize(
         self,
         backend: PyEVMBackend,
+        net_version: int,
         auto_mine_transactions: bool,  # noqa: FBT001
         filter_counter: Iterator[int],
         log_filters: dict[int, LogFilter],
@@ -134,6 +137,7 @@ class Node:
         self.root_private_key = backend.root_private_key
         self._backend = backend
         self._auto_mine_transactions = auto_mine_transactions
+        self._net_version = net_version
 
         # filter tracking
         self._filter_counter = filter_counter
@@ -150,6 +154,7 @@ class Node:
         obj = object.__new__(self.__class__)
         obj._initialize(  # noqa: SLF001
             backend=deepcopy(self._backend, memo),
+            net_version=self._net_version,
             auto_mine_transactions=self._auto_mine_transactions,
             filter_counter=deepcopy(self._filter_counter, memo),
             # Shallow copy is enough, LogFilter objects are immutable
@@ -192,8 +197,7 @@ class Node:
 
     def net_version(self) -> int:
         """Returns the current network id."""
-        # TODO (#10): make adjustable
-        return 1
+        return self._net_version
 
     def eth_chain_id(self) -> int:
         """Returns the chain ID used for signing replay-protected transactions."""
