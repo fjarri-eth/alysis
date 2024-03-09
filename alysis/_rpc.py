@@ -1,7 +1,5 @@
 """RPC-like API, mimicking the behavior of major Ethereum providers."""
 
-from collections.abc import Iterator
-from contextlib import contextmanager
 from enum import Enum
 from typing import cast
 
@@ -28,9 +26,6 @@ class RPCErrorCode(Enum):
 
     SERVER_ERROR = -32000
     """Reserved for implementation-defined server-errors. See the message for details."""
-
-    INVALID_REQUEST = -32600
-    """The JSON sent is not a valid Request object."""
 
     METHOD_NOT_FOUND = -32601
     """The method does not exist / is not available."""
@@ -64,41 +59,6 @@ class RPCError(Exception):
         self.data = cast(str, unstructure(data)) if data is not None else None
 
 
-@contextmanager
-def into_rpc_errors() -> Iterator[None]:
-    try:
-        yield
-
-    except StructuringError as exc:
-        raise RPCError(RPCErrorCode.INVALID_REQUEST, str(exc)) from exc
-
-    except UnstructuringError as exc:
-        raise RPCError(RPCErrorCode.SERVER_ERROR, str(exc)) from exc
-
-    except TransactionReverted as exc:
-        reason_data = exc.args[0]
-
-        if reason_data == b"":
-            # Empty `revert()`, or `require()` without a message.
-
-            # who knows why it's different in this specific case,
-            # but that's how Infura and Quicknode work
-            error = RPCErrorCode.SERVER_ERROR
-
-            message = "execution reverted"
-            data = None
-
-        else:
-            error = RPCErrorCode.EXECUTION_ERROR
-            message = "execution reverted"
-            data = reason_data
-
-        raise RPCError(error, message, data) from exc
-
-    except TransactionFailed as exc:
-        raise RPCError(RPCErrorCode.SERVER_ERROR, exc.args[0]) from exc
-
-
 class RPCNode:
     """
     A wrapper for :py:class:`Node` exposing an RPC-like interface,
@@ -107,13 +67,7 @@ class RPCNode:
 
     def __init__(self, node: Node):
         self.node = node
-
-    def rpc(self, method_name: str, *params: JSON) -> JSON:
-        """
-        Makes an RPC request to the chain and returns the result on success,
-        or raises :py:class:`RPCError` on failure.
-        """
-        methods = dict(
+        self._methods = dict(
             net_version=self._net_version,
             eth_chainId=self._eth_chain_id,
             eth_getBalance=self._eth_get_balance,
@@ -136,8 +90,46 @@ class RPCNode:
             eth_getLogs=self._eth_get_logs,
             eth_getFilterLogs=self._eth_get_filter_logs,
         )
-        with into_rpc_errors():
-            return methods[method_name](params)
+
+    def rpc(self, method_name: str, *params: JSON) -> JSON:
+        """
+        Makes an RPC request to the chain and returns the result on success,
+        or raises :py:class:`RPCError` on failure.
+        """
+        if method_name not in self._methods:
+            raise RPCError(RPCErrorCode.METHOD_NOT_FOUND, f"Unknown method: {method_name}")
+
+        try:
+            return self._methods[method_name](params)
+
+        except StructuringError as exc:
+            raise RPCError(RPCErrorCode.INVALID_PARAMETER, str(exc)) from exc
+
+        except UnstructuringError as exc:
+            raise RPCError(RPCErrorCode.SERVER_ERROR, str(exc)) from exc
+
+        except TransactionReverted as exc:
+            reason_data = exc.args[0]
+
+            if reason_data == b"":
+                # Empty `revert()`, or `require()` without a message.
+
+                # who knows why it's different in this specific case,
+                # but that's how Infura and Quicknode work
+                error = RPCErrorCode.SERVER_ERROR
+
+                message = "execution reverted"
+                data = None
+
+            else:
+                error = RPCErrorCode.EXECUTION_ERROR
+                message = "execution reverted"
+                data = reason_data
+
+            raise RPCError(error, message, data) from exc
+
+        except TransactionFailed as exc:
+            raise RPCError(RPCErrorCode.SERVER_ERROR, exc.args[0]) from exc
 
     def _net_version(self, params: tuple[JSON, ...]) -> JSON:
         _ = structure(tuple[()], params)
