@@ -17,14 +17,13 @@ from eth.abc import (
 )
 from eth.chains.base import MiningChain
 from eth.constants import (
-    GENESIS_PARENT_HASH,
     POST_MERGE_DIFFICULTY,
     POST_MERGE_MIX_HASH,
     POST_MERGE_NONCE,
 )
 from eth.db import get_db_backend
-from eth.db.header import HeaderDB
 from eth.exceptions import HeaderNotFound, Revert, VMError
+from eth.tools.builder.chain import copy as copy_chain
 from eth.typing import AccountDetails
 from eth.vm.forks import ShanghaiVM
 from eth.vm.forks.berlin.transactions import TypedTransaction
@@ -103,24 +102,22 @@ class PyEVMBackend:
 
         genesis_state = {Address(root_private_key.public_key.to_canonical_address()): account_state}
 
-        self.chain_id = chain_id
-        self.root_private_key = root_private_key
-        self.chain = cast(
+        chain = cast(
             MiningChain,
             MainnetTesterPosChain.from_genesis(get_db_backend(), genesis_params, genesis_state),
         )
 
-    def revert_to_block(self, block_hash: Hash32) -> None:
-        block = self.chain.get_block_by_hash(Hash32(block_hash))
-        chaindb = self.chain.chaindb
+        self._initialize(chain, root_private_key.to_bytes())
 
-        # A little hacky. Is there a better way?
-        assert isinstance(chaindb, HeaderDB)  # noqa: S101
-        chaindb._set_as_canonical_chain_head(chaindb.db, block.header, GENESIS_PARENT_HASH)  # noqa: SLF001
-        if block.number > 0:
-            self.chain.import_block(block)
-        else:
-            self.chain = cast(MiningChain, self.chain.from_genesis_header(chaindb.db, block.header))
+    def _initialize(self, chain: MiningChain, root_private_key: bytes) -> None:
+        self.chain_id = chain.chain_id
+        self.root_private_key = root_private_key
+        self.chain = chain
+
+    def __deepcopy__(self, _memo: None | dict[Any, Any]) -> "PyEVMBackend":
+        obj = object.__new__(self.__class__)
+        obj._initialize(copy_chain(self.chain), self.root_private_key)  # noqa: SLF001
+        return obj
 
     def advance_time(self, to_timestamp: int) -> None:
         # timestamp adjusted by 1 b/c a second is added in mine_blocks
