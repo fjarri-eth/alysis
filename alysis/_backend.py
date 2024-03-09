@@ -202,6 +202,9 @@ class PyEVMBackend:
 
         return block
 
+    def get_block_number_by_hash(self, block_hash: Hash32) -> int:
+        return self._get_block_by_hash(block_hash).number
+
     def get_block_by_hash(self, block_hash: Hash32, *, with_transactions: bool) -> BlockInfo:
         block = self._get_block_by_hash(block_hash)
         is_pending = block.number == self.chain.get_block().number

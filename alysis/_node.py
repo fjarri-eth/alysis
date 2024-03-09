@@ -17,6 +17,7 @@ from ._schema import (
     EstimateGasParams,
     EthCallParams,
     FilterParams,
+    FilterParamsEIP234,
     LogEntry,
     TransactionInfo,
     TransactionReceipt,
@@ -394,9 +395,19 @@ class Node:
 
         return entries
 
-    def eth_get_logs(self, params: FilterParams) -> list[LogEntry]:
+    def eth_get_logs(self, params: FilterParams | FilterParamsEIP234) -> list[LogEntry]:
         """Returns an array of all logs matching a given filter object."""
         current_block_number = self._backend.get_latest_block_number()
+
+        if isinstance(params, FilterParamsEIP234):
+            block_number = self._backend.get_block_number_by_hash(params.block_hash)
+            params = FilterParams(
+                from_block=block_number,
+                to_block=block_number,
+                address=params.address,
+                topics=params.topics,
+            )
+
         log_filter = LogFilter(params, current_block_number)
         return self._get_logs(log_filter)
 

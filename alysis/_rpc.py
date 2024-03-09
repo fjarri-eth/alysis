@@ -20,6 +20,7 @@ from ._schema import (
     EstimateGasParams,
     EthCallParams,
     FilterParams,
+    FilterParamsEIP234,
     Hash32,
     LogEntry,
     structure,
@@ -107,6 +108,10 @@ class RPCNode:
 
         try:
             return self._methods[method_name](params)
+
+        except (BlockNotFound, TransactionNotFound) as exc:
+            # If we didn't process it earlier, it's a SERVER_ERROR
+            raise RPCError(RPCErrorCode.SERVER_ERROR, str(exc)) from exc
 
         except (StructuringError, ValidationError) as exc:
             raise RPCError(RPCErrorCode.INVALID_PARAMETER, str(exc)) from exc
@@ -256,5 +261,8 @@ class RPCNode:
         return unstructure(self.node.eth_get_filter_logs(filter_id), list[LogEntry])
 
     def _eth_get_logs(self, params: tuple[JSON, ...]) -> JSON:
-        (typed_params,) = cast(tuple[FilterParams], structure(tuple[FilterParams], params))
+        (typed_params,) = cast(
+            tuple[FilterParams | FilterParamsEIP234],
+            structure(tuple[FilterParams | FilterParamsEIP234], params),
+        )
         return unstructure(self.node.eth_get_logs(typed_params), list[LogEntry])

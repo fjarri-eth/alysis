@@ -39,9 +39,15 @@ Block = int | BlockLabel
 
 @dataclass
 class FilterParams:
-    # TODO (#7): support block_hash field
     from_block: None | Block = None
     to_block: None | Block = None
+    address: None | Address | list[Address] = None
+    topics: None | list[None | Hash32 | list[Hash32]] = None
+
+
+@dataclass
+class FilterParamsEIP234:
+    block_hash: Hash32
     address: None | Address | list[Address] = None
     topics: None | list[None | Hash32 | list[Hash32]] = None
 
