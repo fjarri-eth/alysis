@@ -26,6 +26,7 @@ Fixed
 
 - Process transaction validation errors and missing method errors correctly on RPC level. (PR_20_)
 - Correctly mismatch if there are more topics in the filter than there is in the log entry. (PR_22_)
+- Calculate ``BlockInfo.total_difficulty`` correctly. (PR_22_)
 
 
 .. _PR_18: https://github.com/fjarri/compages/pull/18

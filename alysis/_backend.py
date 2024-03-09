@@ -117,16 +117,27 @@ class PyEVMBackend:
             MainnetTesterPosChain.from_genesis(get_db_backend(), genesis_params, genesis_state),
         )
 
-        self._initialize(chain, root_private_key.to_bytes())
+        self._initialize(
+            chain=chain,
+            root_private_key=root_private_key.to_bytes(),
+            total_difficulty=chain.get_canonical_block_by_number(
+                EthBlockNumber(0)
+            ).header.difficulty,
+        )
 
-    def _initialize(self, chain: MiningChain, root_private_key: bytes) -> None:
+    def _initialize(
+        self, chain: MiningChain, root_private_key: bytes, total_difficulty: int
+    ) -> None:
         self.chain_id = chain.chain_id
         self.root_private_key = root_private_key
         self.chain = chain
 
+        # PyEVM doesn't keep track of it, so we have to.
+        self._total_difficulty = total_difficulty
+
     def __deepcopy__(self, _memo: None | dict[Any, Any]) -> "PyEVMBackend":
         obj = object.__new__(self.__class__)
-        obj._initialize(copy_chain(self.chain), self.root_private_key)  # noqa: SLF001
+        obj._initialize(copy_chain(self.chain), self.root_private_key, self._total_difficulty)  # noqa: SLF001
         return obj
 
     def mine_block(self, timestamp: None | int = None) -> Hash32:
@@ -144,7 +155,9 @@ class PyEVMBackend:
         # ParisVM and forward, generate a random `mix_hash` to simulate the `prevrandao` value.
         mix_hash = os.urandom(32)
 
-        return Hash32(self.chain.mine_block(coinbase=ZERO_ADDRESS, mix_hash=mix_hash).hash)
+        block_hash = Hash32(self.chain.mine_block(coinbase=ZERO_ADDRESS, mix_hash=mix_hash).hash)
+        self._total_difficulty += self._get_block_by_number(BlockLabel.LATEST).header.difficulty
+        return block_hash
 
     def _get_block_by_number(self, block: Block) -> BlockAPI:
         if isinstance(block, int):
@@ -197,7 +210,11 @@ class PyEVMBackend:
         block_api = self._get_block_by_number(block)
         is_pending = block_api.number == self.chain.get_block().number
         return make_block_info(
-            self.chain_id, block_api, with_transactions=with_transactions, is_pending=is_pending
+            self.chain_id,
+            block_api,
+            total_difficulty=self._total_difficulty,
+            with_transactions=with_transactions,
+            is_pending=is_pending,
         )
 
     def _get_block_by_hash(self, block_hash: Hash32) -> BlockAPI:
@@ -218,7 +235,11 @@ class PyEVMBackend:
         block = self._get_block_by_hash(block_hash)
         is_pending = block.number == self.chain.get_block().number
         return make_block_info(
-            self.chain_id, block, with_transactions=with_transactions, is_pending=is_pending
+            self.chain_id,
+            block,
+            total_difficulty=self._total_difficulty,
+            with_transactions=with_transactions,
+            is_pending=is_pending,
         )
 
     def _get_transaction_by_hash(
@@ -369,7 +390,12 @@ class PyEVMBackend:
 
 
 def make_block_info(
-    chain_id: int, block: BlockAPI, *, with_transactions: bool, is_pending: bool
+    chain_id: int,
+    block: BlockAPI,
+    *,
+    total_difficulty: int,
+    with_transactions: bool,
+    is_pending: bool,
 ) -> BlockInfo:
     transactions: list[Hash32] | list[TransactionInfo]
     if with_transactions:
@@ -396,8 +422,7 @@ def make_block_info(
         receipts_root=Hash32(block.header.receipt_root),
         miner=Address(block.header.coinbase) if not is_pending else None,
         difficulty=block.header.difficulty if not is_pending else 0,
-        # TODO (#15): actual total difficulty
-        total_difficulty=block.header.difficulty if not is_pending else None,
+        total_difficulty=total_difficulty if not is_pending else None,
         extra_data=block.header.extra_data.rjust(32, b"\x00"),
         size=len(_rlp_encode(block)),  # TODO (#16): is this right?
         gas_limit=block.header.gas_limit,
