@@ -60,7 +60,7 @@ class LogFilter:
         to_block = self._to_block if self._to_block is not None else current_block_number
         return range(self._from_block, to_block + 1)
 
-    def matches(self, entry: LogEntry) -> bool:
+    def matches(self, entry: LogEntry) -> bool:  # noqa: PLR0911
         if entry.block_number < self._from_block:
             return False
 
@@ -73,8 +73,14 @@ class LogFilter:
         if self._topics is None:
             return True
 
-        # TODO (#12): what's the behavior if the length of topics in the filter
-        # is larger than that in the log? Just mismatch? Error?
+        # If we filter by more topics than there is in the entry,
+        # it's an automatic mismatch.
+        if len(self._topics) > len(entry.topics):
+            return False
+
+        # But note that if `self._topics` is shorter than `entry.topics`
+        # it is equivalent to the missing values being `None`,
+        # that is, matching anything.
         for topics, logged_topic in zip(self._topics, entry.topics, strict=False):
             if topics is None:
                 continue
