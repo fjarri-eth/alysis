@@ -14,10 +14,6 @@ class FilterNotFound(Exception):
     """Requested filter cannot be found."""
 
 
-class SnapshotNotFound(Exception):
-    """Requested snapshot cannot be found."""
-
-
 class TransactionFailed(Exception):
     """Transaction could not be executed."""
 

@@ -1,11 +1,13 @@
 import itertools
+from collections.abc import Iterator
+from copy import deepcopy
+from typing import Any
 
 from eth_typing import Address, Hash32
 
 from ._backend import PyEVMBackend
 from ._exceptions import (
     FilterNotFound,
-    SnapshotNotFound,
     ValidationError,
 )
 from ._schema import (
@@ -108,23 +110,57 @@ class Node:
         auto_mine_transactions: bool = True,
     ):
         backend = PyEVMBackend(root_balance_wei=root_balance_wei, chain_id=chain_id)
+        self._initialize(
+            backend=backend,
+            auto_mine_transactions=auto_mine_transactions,
+            filter_counter=itertools.count(),
+            log_filters={},
+            log_filter_entries={},
+            block_filters={},
+            pending_transaction_filters={},
+        )
 
-        self.root_private_key = backend.root_private_key.to_bytes()
-
+    def _initialize(
+        self,
+        backend: PyEVMBackend,
+        auto_mine_transactions: bool,  # noqa: FBT001
+        filter_counter: Iterator[int],
+        log_filters: dict[int, LogFilter],
+        log_filter_entries: dict[int, list[LogEntry]],
+        block_filters: dict[int, list[Hash32]],
+        pending_transaction_filters: dict[int, list[Hash32]],
+    ) -> None:
+        self.root_private_key = backend.root_private_key
         self._backend = backend
-
         self._auto_mine_transactions = auto_mine_transactions
 
         # filter tracking
-        self._filter_counter = itertools.count()
-        self._log_filters: dict[int, LogFilter] = {}
-        self._log_filter_entries: dict[int, list[LogEntry]] = {}
-        self._block_filters: dict[int, list[Hash32]] = {}
-        self._pending_transaction_filters: dict[int, list[Hash32]] = {}
+        self._filter_counter = filter_counter
+        self._log_filters = log_filters
+        self._log_filter_entries = log_filter_entries
+        self._block_filters = block_filters
+        self._pending_transaction_filters = pending_transaction_filters
 
-        # snapshot tracking
-        self._snapshot_counter = itertools.count()
-        self._snapshots: dict[int, Hash32] = {}
+    def __deepcopy__(self, memo: None | dict[Any, Any]) -> "Node":
+        """
+        Makes a copy of this object that includes the chain state
+        (with the pending transactions) and the filter state.
+        """
+        obj = object.__new__(self.__class__)
+        obj._initialize(  # noqa: SLF001
+            backend=deepcopy(self._backend, memo),
+            auto_mine_transactions=self._auto_mine_transactions,
+            filter_counter=deepcopy(self._filter_counter, memo),
+            # Shallow copy is enough, LogFilter objects are immutable
+            log_filters=dict(self._log_filters),
+            # One level deep copy is enough here
+            log_filter_entries={key: val[:] for key, val in self._log_filter_entries.items()},
+            block_filters={key: val[:] for key, val in self._block_filters.items()},
+            pending_transaction_filters={
+                key: val[:] for key, val in self._pending_transaction_filters.items()
+            },
+        )
+        return obj
 
     def advance_time(self, to_timestamp: int) -> None:
         """Advances the chain time to the given timestamp and mines a new block."""
@@ -160,30 +196,6 @@ class Node:
             for log_entry in log_entries:
                 if log_filter.matches(log_entry):
                     self._log_filter_entries[filter_id].append(log_entry)
-
-    def take_snapshot(self) -> int:
-        """
-        Takes a snapshot of the current node state
-        (including the state of both the chain and the filters),
-        and returns the snapshot ID.
-
-        Note that the snapshots are stored within this object,
-        and IDs are only valid for it, not other :py:class:`Node` instances.
-        """
-        snapshot_id = next(self._snapshot_counter)
-        self._snapshots[snapshot_id] = self._backend.get_latest_block_hash()
-        return snapshot_id
-
-    def revert_to_snapshot(self, snapshot_id: int) -> None:
-        """Reverts the node state to the given snapshot."""
-        try:
-            block_hash = self._snapshots[snapshot_id]
-        except KeyError as exc:
-            raise SnapshotNotFound(f"No snapshot found for id: {snapshot_id}") from exc
-        else:
-            self._backend.revert_to_block(block_hash)
-
-        # TODO (#9): revert the filter state
 
     def net_version(self) -> int:
         """Returns the current network id."""

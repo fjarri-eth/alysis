@@ -3,7 +3,6 @@
 from ._exceptions import (
     BlockNotFound,
     FilterNotFound,
-    SnapshotNotFound,
     TransactionFailed,
     TransactionNotFound,
     TransactionReverted,
@@ -36,7 +35,6 @@ __all__ = [
     "Node",
     "RPCNode",
     "RPCError",
-    "SnapshotNotFound",
     "TransactionFailed",
     "TransactionInfo",
     "TransactionNotFound",
