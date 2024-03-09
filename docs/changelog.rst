@@ -12,6 +12,12 @@ Changed
 - Transaction validation errors now raise ``ValidationError`` instead of ``TransactionFailed``. (PR_20_)
 
 
+Added
+^^^^^
+
+- Support for ``blockHash`` parameter in ``eth_getLogs``. (PR_21_)
+
+
 Fixed
 ^^^^^
 
@@ -20,6 +26,7 @@ Fixed
 
 .. _PR_18: https://github.com/fjarri/compages/pull/18
 .. _PR_20: https://github.com/fjarri/compages/pull/20
+.. _PR_21: https://github.com/fjarri/compages/pull/21
 
 
 0.2.0 (2024-03-05)
