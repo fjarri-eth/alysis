@@ -147,6 +147,14 @@ class PyEVMBackend:
         return Hash32(self.chain.mine_block(coinbase=ZERO_ADDRESS, mix_hash=mix_hash).hash)
 
     def _get_block_by_number(self, block: Block) -> BlockAPI:
+        if isinstance(block, int):
+            # Note: The head block is the pending block. If a block number is passed
+            # explicitly here, return the block only if it is already part of the chain
+            # (i.e. not pending).
+            head_block = self.chain.get_block()
+            if block < head_block.number:
+                return self.chain.get_canonical_block_by_number(EthBlockNumber(block))
+
         if block in (BlockLabel.LATEST, BlockLabel.SAFE, BlockLabel.FINALIZED):
             head_block = self.chain.get_block()
             return self.chain.get_canonical_block_by_number(
@@ -158,14 +166,6 @@ class PyEVMBackend:
 
         if block == BlockLabel.PENDING:
             return self.chain.get_block()
-
-        if isinstance(block, int):
-            # Note: The head block is the pending block. If a block number is passed
-            # explicitly here, return the block only if it is already part of the chain
-            # (i.e. not pending).
-            head_block = self.chain.get_block()
-            if block < head_block.number:
-                return self.chain.get_canonical_block_by_number(EthBlockNumber(block))
 
         # fallback
         raise BlockNotFound(f"No block found for block number: {block}")
@@ -228,9 +228,10 @@ class PyEVMBackend:
         for index, transaction in enumerate(head_block.transactions):
             if Hash32(transaction.hash) == transaction_hash:
                 return head_block, transaction, index
+        # Since there is no method in PyEvm to get a transaction by hash directly,
+        # we have to go through all the blocks, starting from the most recent ones.
         for block_number in range(head_block.number - 1, -1, -1):
-            # TODO (#13): the chain should be able to look these up directly by hash...
-            block = self.chain.get_canonical_block_by_number(EthBlockNumber(block_number))
+            block = self._get_block_by_number(block_number)
             for index, transaction in enumerate(block.transactions):
                 if Hash32(transaction.hash) == transaction_hash:
                     return block, transaction, index
