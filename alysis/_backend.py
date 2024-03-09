@@ -424,7 +424,9 @@ def make_block_info(
         difficulty=block.header.difficulty if not is_pending else 0,
         total_difficulty=total_difficulty if not is_pending else None,
         extra_data=block.header.extra_data.rjust(32, b"\x00"),
-        size=len(_rlp_encode(block)),  # TODO (#16): is this right?
+        # Note: not sure if this is right, but Ethereum is extremely vague
+        # about what this field represents. Reopen #16 if there is new information.
+        size=len(_rlp_encode(block)),
         gas_limit=block.header.gas_limit,
         gas_used=block.header.gas_used,
         # Note: this appears after EIP-1559 upgrade. Ethereum.org does not list this field,
