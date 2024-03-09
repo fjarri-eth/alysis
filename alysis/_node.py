@@ -162,18 +162,6 @@ class Node:
         )
         return obj
 
-    def advance_time(self, to_timestamp: int) -> None:
-        """Advances the chain time to the given timestamp and mines a new block."""
-        current_timestamp = self._backend.get_current_timestamp()
-        if to_timestamp == current_timestamp:
-            return
-        if to_timestamp < current_timestamp:
-            raise ValidationError(
-                f"The new timestamp ({to_timestamp}) must be greater than "
-                f"the current one ({current_timestamp})"
-            )
-        self._backend.advance_time(to_timestamp)
-
     def enable_auto_mine_transactions(self) -> None:
         """Turns automining on and mines a new block."""
         self._auto_mine_transactions = True
@@ -183,9 +171,13 @@ class Node:
         """Turns automining off."""
         self._auto_mine_transactions = False
 
-    def mine_block(self) -> None:
-        """Mines a new block containing all the pending transactions."""
-        block_hash = self._backend.mine_block()
+    def mine_block(self, timestamp: None | int = None) -> None:
+        """
+        Mines a new block containing all the pending transactions.
+
+        If ``timestamp`` is not ``None``, sets the new block's timestamp to the given value.
+        """
+        block_hash = self._backend.mine_block(timestamp=timestamp)
 
         # feed the block hash to any block filters
         for block_filter in self._block_filters.values():

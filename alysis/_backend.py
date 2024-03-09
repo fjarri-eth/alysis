@@ -119,17 +119,22 @@ class PyEVMBackend:
         obj._initialize(copy_chain(self.chain), self.root_private_key)  # noqa: SLF001
         return obj
 
-    def advance_time(self, to_timestamp: int) -> None:
-        # timestamp adjusted by 1 b/c a second is added in mine_blocks
-        self.chain.header = self.chain.header.copy(timestamp=(to_timestamp - 1))
-        self.mine_block()
+    def mine_block(self, timestamp: None | int = None) -> Hash32:
+        if timestamp is not None:
+            current_timestamp = self.chain.header.timestamp
+            if timestamp < current_timestamp:
+                raise ValidationError(
+                    f"The new timestamp ({timestamp}) must be greater than "
+                    f"the current one ({current_timestamp})"
+                )
 
-    def get_current_timestamp(self) -> int:
-        return self.chain.header.timestamp
+            # timestamp adjusted by 1 b/c a second is added in mine_blocks
+            self.chain.header = self.chain.header.copy(timestamp=timestamp - 1)
 
-    def mine_block(self) -> Hash32:
         # ParisVM and forward, generate a random `mix_hash` to simulate the `prevrandao` value.
-        return self.chain.mine_block(coinbase=ZERO_ADDRESS, mix_hash=os.urandom(32)).hash
+        mix_hash = os.urandom(32)
+
+        return self.chain.mine_block(coinbase=ZERO_ADDRESS, mix_hash=mix_hash).hash
 
     def _get_block_by_number(self, block: Block) -> BlockAPI:
         if block in (BlockLabel.LATEST, BlockLabel.SAFE, BlockLabel.FINALIZED):
