@@ -196,7 +196,7 @@ def _structure_into_address(val: Any) -> Address:
 def _structure_into_hash32(val: Any) -> Hash32:
     res = _structure_into_bytes_common(val)
     if len(res) != 32:
-        raise StructuringError("The value must encode 30 bytes")
+        raise StructuringError("The value must encode 32 bytes")
     return Hash32(res)
 
 
