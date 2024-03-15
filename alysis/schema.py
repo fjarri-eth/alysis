@@ -12,9 +12,8 @@ from compages import (
     StructuringError,
     UnstructureDataclassToDict,
     Unstructurer,
-    UnstructuringError,
     simple_structure,
-    simple_unstructure,
+    simple_typechecked_unstructure,
     structure_into_bool,
     structure_into_list,
     structure_into_none,
@@ -229,17 +228,13 @@ def _structure_into_block(val: Any) -> BlockLabel:
         raise StructuringError(str(exc)) from exc
 
 
-@simple_unstructure
+@simple_typechecked_unstructure
 def _unstructure_int_to_hex(obj: int) -> str:
-    if not isinstance(obj, int):
-        raise UnstructuringError("The value must be an integer")
     return hex(obj)
 
 
-@simple_unstructure
+@simple_typechecked_unstructure
 def _unstructure_bytes_to_hex(obj: bytes) -> str:
-    if not isinstance(obj, bytes):
-        raise UnstructuringError("The value must be a bytestring")
     return "0x" + obj.hex()
 
 
