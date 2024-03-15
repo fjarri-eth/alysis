@@ -1,6 +1,18 @@
 Changelog
 =========
 
+0.4.0 (unreleased)
+------------------
+
+Changed
+^^^^^^^
+
+- ``RPCError.data`` is now ``None | bytes`` instead of ``None | str``. (PR_23_)
+
+
+.. _PR_23: https://github.com/fjarri/compages/pull/23
+
+
 0.3.0 (2024-03-09)
 ------------------
 

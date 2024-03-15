@@ -56,14 +56,14 @@ class RPCError(Exception):
     message: str
     """The associated message."""
 
-    data: None | str
+    data: None | bytes
     """The associated hex-encoded data (if any)."""
 
     def __init__(self, code: RPCErrorCode, message: str, data: None | bytes = None):
         super().__init__(f"Error {code}: {message}")
         self.code = code.value
         self.message = message
-        self.data = cast(str, unstructure(data)) if data is not None else None
+        self.data = data
 
 
 class RPCNode:
