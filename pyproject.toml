@@ -12,7 +12,7 @@ dependencies = [
     "eth-typing>=4",
     "eth-keys>=0.5",
     "rlp>=4",
-    "compages>=0.2.1",
+    "compages>=0.3.0",
 ]
 requires-python = ">=3.10"
 classifiers = [

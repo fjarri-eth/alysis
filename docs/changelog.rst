@@ -8,6 +8,7 @@ Changed
 ^^^^^^^
 
 - ``RPCError.data`` is now ``None | bytes`` instead of ``None | str``. (PR_23_)
+- ``compages`` dependency bumped to 0.3. (PR_23_)
 
 
 .. _PR_23: https://github.com/fjarri/compages/pull/23
