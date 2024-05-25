@@ -8,7 +8,7 @@ authors = [
 dependencies = [
     "eth-utils>=3",
     "setuptools", # required by eth-utils, but it just assumes that it's already installed
-    "py-evm==0.9.0b1", # py-evm doesn't have normal releases, so have to fix the version
+    "py-evm==0.10.1b1", # py-evm doesn't have normal releases, so have to fix the version
     "eth-typing>=4",
     "eth-keys>=0.5",
     "rlp>=4",
@@ -31,7 +31,7 @@ homepage = "https://github.com/fjarri/alysis"
 tests = [
     "pytest>=6",
     "pytest-cov",
-    "eth-account>=0.6"
+    "eth-account>=0.13"
 ]
 docs = [
     "sphinx>=4",

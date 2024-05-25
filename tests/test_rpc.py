@@ -9,9 +9,9 @@ def test_eth_get_balance(rpc_node, root_account, another_account):
         "maxPriorityFeePerGas": hex(10**9),
         "nonce": hex(0),
     }
-    signed_tx = root_account.sign_transaction(tx).rawTransaction
+    signed_tx = root_account.sign_transaction(tx).raw_transaction
 
-    rpc_node.rpc("eth_sendRawTransaction", signed_tx.hex())
+    rpc_node.rpc("eth_sendRawTransaction", "0x" + signed_tx.hex())
 
     result = rpc_node.rpc("eth_getBalance", another_account.address, "latest")
     assert result == hex(10**9)

@@ -1,6 +1,19 @@
 Changelog
 =========
 
+
+0.5.0 (unreleased)
+------------------
+
+Changed
+^^^^^^^
+
+- Bump ``py-evm`` to 0.10.1b1. (PR_24_)
+
+
+.. _PR_24: https://github.com/fjarri/compages/pull/24
+
+
 0.4.0 (2024-03-15)
 ------------------
 
