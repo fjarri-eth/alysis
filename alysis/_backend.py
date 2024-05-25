@@ -17,6 +17,7 @@ from eth.abc import (
 )
 from eth.chains.base import MiningChain
 from eth.constants import (
+    BLANK_ROOT_HASH,
     POST_MERGE_DIFFICULTY,
     POST_MERGE_MIX_HASH,
     POST_MERGE_NONCE,
@@ -84,8 +85,6 @@ class PyEVMBackend:
                 header_params["gas_limit"] = parent_header.gas_limit
                 return super().create_header_from_parent(parent_header, **header_params)
 
-        blank_root_hash = keccak(_rlp_encode(b""))
-
         genesis_params: dict[str, None | int | EthBlockNumber | bytes | EthAddress | EthHash32] = {
             "coinbase": ZERO_ADDRESS,
             "difficulty": POST_MERGE_DIFFICULTY,
@@ -93,9 +92,9 @@ class PyEVMBackend:
             "gas_limit": 30029122,  # gas limit at London fork block 12965000 on mainnet
             "mix_hash": POST_MERGE_MIX_HASH,
             "nonce": POST_MERGE_NONCE,
-            "receipt_root": blank_root_hash,
+            "receipt_root": BLANK_ROOT_HASH,
             "timestamp": int(time.time()),
-            "transaction_root": blank_root_hash,
+            "transaction_root": BLANK_ROOT_HASH,
         }
 
         account_state: AccountDetails = {
