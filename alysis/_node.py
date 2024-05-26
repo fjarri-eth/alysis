@@ -3,25 +3,26 @@ from collections.abc import Iterator
 from copy import deepcopy
 from typing import Any
 
-from ._backend import PyEVMBackend
-from ._exceptions import (
-    FilterNotFound,
-    ValidationError,
-)
-from .schema import (
+from ethereum_rpc import (
     Address,
+    Amount,
     Block,
+    BlockHash,
     BlockInfo,
     BlockLabel,
     EstimateGasParams,
     EthCallParams,
     FilterParams,
     FilterParamsEIP234,
-    Hash32,
     LogEntry,
-    TransactionInfo,
-    TransactionReceipt,
+    TxHash,
+    TxInfo,
+    TxReceipt,
 )
+
+from ._backend import PyEVMBackend
+from ._constants import EVMVersion
+from ._exceptions import FilterNotFound, ValidationError
 
 
 class LogFilter:
@@ -44,12 +45,12 @@ class LogFilter:
         else:
             raise ValidationError(f"`to_block` value of {params.to_block} is not supported")
 
-        if isinstance(params.address, list):
+        if isinstance(params.address, tuple):
             addresses = params.address
         elif params.address is None:
             addresses = None
         else:
-            addresses = [params.address]
+            addresses = (params.address,)
 
         self._from_block = from_block
         self._to_block = to_block
@@ -85,7 +86,7 @@ class LogFilter:
             if topics is None:
                 continue
 
-            filter_topics = topics if isinstance(topics, list) else [topics]
+            filter_topics = topics if isinstance(topics, tuple) else (topics,)
 
             for filter_topic in filter_topics:
                 if filter_topic == logged_topic:
@@ -113,11 +114,14 @@ class Node:
         self,
         *,
         root_balance_wei: int,
+        evm_version: EVMVersion = EVMVersion.CANCUN,
         chain_id: int = DEFAULT_ID,
         net_version: int = 1,
         auto_mine_transactions: bool = True,
     ):
-        backend = PyEVMBackend(root_balance_wei=root_balance_wei, chain_id=chain_id)
+        backend = PyEVMBackend(
+            root_balance_wei=root_balance_wei, chain_id=chain_id, evm_version=evm_version
+        )
         self._initialize(
             backend=backend,
             net_version=net_version,
@@ -137,8 +141,8 @@ class Node:
         filter_counter: Iterator[int],
         log_filters: dict[int, LogFilter],
         log_filter_entries: dict[int, list[LogEntry]],
-        block_filters: dict[int, list[Hash32]],
-        pending_transaction_filters: dict[int, list[Hash32]],
+        block_filters: dict[int, list[BlockHash]],
+        pending_transaction_filters: dict[int, list[TxHash]],
     ) -> None:
         self.root_private_key = backend.root_private_key
         self._backend = backend
@@ -209,14 +213,14 @@ class Node:
         """Returns the chain ID used for signing replay-protected transactions."""
         return self._backend.chain_id
 
-    def eth_gas_price(self) -> int:
+    def eth_gas_price(self) -> Amount:
         """Returns an estimate of the current price per gas in wei."""
         # The specific algorithm is not enforced in the standard,
         # but this is the logic Infura uses. Seems to work for them.
         block_info = self.eth_get_block_by_number(BlockLabel.LATEST, with_transactions=False)
 
         # Base fee plus 1 GWei
-        return block_info.base_fee_per_gas + 10**9
+        return block_info.base_fee_per_gas + Amount.gwei(1)
 
     def eth_block_number(self) -> int:
         """Returns the number of most recent block."""
@@ -243,7 +247,7 @@ class Node:
         """Returns the number of transactions sent from an address."""
         return self._backend.get_transaction_count(address, block)
 
-    def eth_get_transaction_by_hash(self, transaction_hash: Hash32) -> TransactionInfo:
+    def eth_get_transaction_by_hash(self, transaction_hash: TxHash) -> TxInfo:
         """
         Returns the information about a transaction requested by transaction hash.
 
@@ -260,7 +264,7 @@ class Node:
         """
         return self._backend.get_block_by_number(block, with_transactions=with_transactions)
 
-    def eth_get_block_by_hash(self, block_hash: Hash32, *, with_transactions: bool) -> BlockInfo:
+    def eth_get_block_by_hash(self, block_hash: BlockHash, *, with_transactions: bool) -> BlockInfo:
         """
         Returns information about a block by hash.
 
@@ -268,7 +272,7 @@ class Node:
         """
         return self._backend.get_block_by_hash(block_hash, with_transactions=with_transactions)
 
-    def eth_get_transaction_receipt(self, transaction_hash: Hash32) -> TransactionReceipt:
+    def eth_get_transaction_receipt(self, transaction_hash: TxHash) -> TxReceipt:
         """
         Returns the receipt of a transaction by transaction hash.
 
@@ -277,7 +281,7 @@ class Node:
         """
         return self._backend.get_transaction_receipt(transaction_hash)
 
-    def eth_send_raw_transaction(self, raw_transaction: bytes) -> Hash32:
+    def eth_send_raw_transaction(self, raw_transaction: bytes) -> TxHash:
         """
         Attempts to add a signed RLP-encoded transaction to the current block.
         Returns the transaction hash on success.
@@ -288,7 +292,7 @@ class Node:
         If there were other problems with the transaction, raises :py:class:`TransactionFailed`.
         """
         transaction = self._backend.decode_transaction(raw_transaction)
-        transaction_hash = Hash32(transaction.hash)
+        transaction_hash = TxHash(transaction.hash)
 
         for tx_filter in self._pending_transaction_filters.values():
             tx_filter.append(transaction_hash)
@@ -367,7 +371,9 @@ class Node:
         else:
             raise FilterNotFound("Unknown filter id")
 
-    def eth_get_filter_changes(self, filter_id: int) -> list[LogEntry] | list[Hash32]:
+    def eth_get_filter_changes(
+        self, filter_id: int
+    ) -> list[LogEntry] | list[TxHash] | list[BlockHash]:
         """
         Polling method for a filter, which returns an array of logs which occurred since last poll.
 
@@ -378,14 +384,14 @@ class Node:
             Call :py:meth:`eth_get_filter_logs` to get those.
         """
         if filter_id in self._block_filters:
-            entries = self._block_filters[filter_id]
+            block_entries = self._block_filters[filter_id]
             self._block_filters[filter_id] = []
-            return entries
+            return block_entries
 
         if filter_id in self._pending_transaction_filters:
-            entries = self._pending_transaction_filters[filter_id]
+            tx_entries = self._pending_transaction_filters[filter_id]
             self._pending_transaction_filters[filter_id] = []
-            return entries
+            return tx_entries
 
         if filter_id in self._log_filters:
             log_entries = self._log_filter_entries[filter_id]

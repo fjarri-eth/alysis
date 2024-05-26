@@ -1,9 +1,24 @@
 """RPC-like API, mimicking the behavior of major Ethereum providers."""
 
-from enum import Enum
 from typing import cast
 
 from compages import StructuringError, UnstructuringError
+from ethereum_rpc import (
+    JSON,
+    Address,
+    Block,
+    BlockHash,
+    EstimateGasParams,
+    EthCallParams,
+    FilterParams,
+    FilterParamsEIP234,
+    LogEntry,
+    RPCError,
+    RPCErrorCode,
+    TxHash,
+    structure,
+    unstructure,
+)
 
 from ._exceptions import (
     BlockNotFound,
@@ -13,57 +28,6 @@ from ._exceptions import (
     ValidationError,
 )
 from ._node import Node
-from .schema import (
-    JSON,
-    Address,
-    Block,
-    EstimateGasParams,
-    EthCallParams,
-    FilterParams,
-    FilterParamsEIP234,
-    Hash32,
-    LogEntry,
-    structure,
-    unstructure,
-)
-
-
-class RPCErrorCode(Enum):
-    """Known RPC error codes returned by providers."""
-
-    SERVER_ERROR = -32000
-    """Reserved for implementation-defined server-errors. See the message for details."""
-
-    METHOD_NOT_FOUND = -32601
-    """The method does not exist / is not available."""
-
-    INVALID_PARAMETER = -32602
-    """Invalid method parameter(s)."""
-
-    EXECUTION_ERROR = 3
-    """Contract transaction failed during execution. See the data for details."""
-
-
-class RPCError(Exception):
-    """
-    An exception raised in case of a known error, that is something that would be returned as
-    ``"error": {"code": ..., "message": ..., "data": ...}`` sub-dictionary in an RPC response.
-    """
-
-    code: int
-    """The error type."""
-
-    message: str
-    """The associated message."""
-
-    data: None | bytes
-    """The associated hex-encoded data (if any)."""
-
-    def __init__(self, code: RPCErrorCode, message: str, data: None | bytes = None):
-        super().__init__(f"Error {code}: {message}")
-        self.code = code.value
-        self.message = message
-        self.data = data
 
 
 class RPCNode:
@@ -104,20 +68,22 @@ class RPCNode:
         or raises :py:class:`RPCError` on failure.
         """
         if method_name not in self._methods:
-            raise RPCError(RPCErrorCode.METHOD_NOT_FOUND, f"Unknown method: {method_name}")
+            raise RPCError.with_code(
+                RPCErrorCode.METHOD_NOT_FOUND, f"Unknown method: {method_name}"
+            )
 
         try:
             return self._methods[method_name](params)
 
         except (BlockNotFound, TransactionNotFound) as exc:
             # If we didn't process it earlier, it's a SERVER_ERROR
-            raise RPCError(RPCErrorCode.SERVER_ERROR, str(exc)) from exc
+            raise RPCError.with_code(RPCErrorCode.SERVER_ERROR, str(exc)) from exc
 
         except (StructuringError, ValidationError) as exc:
-            raise RPCError(RPCErrorCode.INVALID_PARAMETER, str(exc)) from exc
+            raise RPCError.with_code(RPCErrorCode.INVALID_PARAMETER, str(exc)) from exc
 
         except UnstructuringError as exc:
-            raise RPCError(RPCErrorCode.SERVER_ERROR, str(exc)) from exc
+            raise RPCError.with_code(RPCErrorCode.SERVER_ERROR, str(exc)) from exc
 
         except TransactionReverted as exc:
             reason_data = exc.args[0]
@@ -137,10 +103,10 @@ class RPCNode:
                 message = "execution reverted"
                 data = reason_data
 
-            raise RPCError(error, message, data) from exc
+            raise RPCError.with_code(error, message, data) from exc
 
         except TransactionFailed as exc:
-            raise RPCError(RPCErrorCode.SERVER_ERROR, exc.args[0]) from exc
+            raise RPCError.with_code(RPCErrorCode.SERVER_ERROR, exc.args[0]) from exc
 
     def _net_version(self, params: tuple[JSON, ...]) -> JSON:
         _ = structure(tuple[()], params)
@@ -178,7 +144,7 @@ class RPCNode:
         return unstructure(self.node.eth_get_transaction_count(address, block))
 
     def _eth_get_transaction_by_hash(self, params: tuple[JSON, ...]) -> JSON:
-        (transaction_hash,) = cast(tuple[Hash32], structure(tuple[Hash32], params))
+        (transaction_hash,) = cast(tuple[TxHash], structure(tuple[TxHash], params))
         try:
             transaction = self.node.eth_get_transaction_by_hash(transaction_hash)
         except TransactionNotFound:
@@ -197,8 +163,8 @@ class RPCNode:
 
     def _eth_get_block_by_hash(self, params: tuple[JSON, ...]) -> JSON:
         block_hash, with_transactions = cast(
-            tuple[Hash32, bool],
-            structure(tuple[Hash32, bool], params),
+            tuple[BlockHash, bool],
+            structure(tuple[BlockHash, bool], params),
         )
         try:
             block_info = self.node.eth_get_block_by_hash(
@@ -209,7 +175,7 @@ class RPCNode:
         return unstructure(block_info)
 
     def _eth_get_transaction_receipt(self, params: tuple[JSON, ...]) -> JSON:
-        (transaction_hash,) = cast(tuple[Hash32], structure(tuple[Hash32], params))
+        (transaction_hash,) = cast(tuple[TxHash], structure(tuple[TxHash], params))
         try:
             receipt = self.node.eth_get_transaction_receipt(transaction_hash)
         except TransactionNotFound:
@@ -253,7 +219,8 @@ class RPCNode:
     def _eth_get_filter_changes(self, params: tuple[JSON, ...]) -> JSON:
         (filter_id,) = cast(tuple[int], structure(tuple[int], params))
         return unstructure(
-            self.node.eth_get_filter_changes(filter_id), list[LogEntry] | list[Hash32]
+            self.node.eth_get_filter_changes(filter_id),
+            list[LogEntry] | list[TxHash] | list[BlockHash],
         )
 
     def _eth_get_filter_logs(self, params: tuple[JSON, ...]) -> JSON:

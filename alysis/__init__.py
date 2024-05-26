@@ -1,5 +1,6 @@
 """Ethereum testerchain."""
 
+from ._constants import EVMVersion
 from ._exceptions import (
     BlockNotFound,
     FilterNotFound,
@@ -9,15 +10,15 @@ from ._exceptions import (
     ValidationError,
 )
 from ._node import Node
-from ._rpc import RPCError, RPCNode
+from ._rpc import RPCNode
 
 __all__ = [
     "BlockNotFound",
+    "EVMVersion",
     "FilterNotFound",
     "FilterParams",
     "Node",
     "RPCNode",
-    "RPCError",
     "TransactionFailed",
     "TransactionNotFound",
     "TransactionReverted",

@@ -26,16 +26,48 @@ from eth.db import get_db_backend
 from eth.exceptions import HeaderNotFound, Revert, VMError
 from eth.tools.builder.chain import copy as copy_chain
 from eth.typing import AccountDetails
-from eth.vm.forks import ShanghaiVM
+from eth.vm.forks import (
+    BerlinVM,
+    ByzantiumVM,
+    CancunVM,
+    ConstantinopleVM,
+    HomesteadVM,
+    IstanbulVM,
+    LondonVM,
+    ParisVM,
+    ShanghaiVM,
+    SpuriousDragonVM,
+    TangerineWhistleVM,
+)
 from eth.vm.forks.berlin.transactions import TypedTransaction
 from eth.vm.spoof import SpoofTransaction
 from eth_keys import KeyAPI
 from eth_typing import Address as EthAddress
 from eth_typing import BlockNumber as EthBlockNumber
 from eth_typing import Hash32 as EthHash32
-from eth_utils import encode_hex, keccak
 from eth_utils.exceptions import ValidationError as EthValidationError
+from ethereum_rpc import (
+    Address,
+    Amount,
+    Block,
+    BlockHash,
+    BlockInfo,
+    BlockLabel,
+    BlockNonce,
+    EstimateGasParams,
+    EthCallParams,
+    LogEntry,
+    LogsBloom,
+    LogTopic,
+    TrieHash,
+    TxHash,
+    TxInfo,
+    TxReceipt,
+    UnclesHash,
+    keccak,
+)
 
+from ._constants import EVMVersion
 from ._exceptions import (
     BlockNotFound,
     TransactionFailed,
@@ -43,23 +75,22 @@ from ._exceptions import (
     TransactionReverted,
     ValidationError,
 )
-from .schema import (
-    Address,
-    Block,
-    BlockInfo,
-    BlockLabel,
-    BlockNonce,
-    EstimateGasParams,
-    EthCallParams,
-    Hash32,
-    LogEntry,
-    LogsBloom,
-    LogTopic,
-    TransactionInfo,
-    TransactionReceipt,
-)
 
 ZERO_ADDRESS = EthAddress(20 * b"\x00")
+
+EVM_MAPPING = {
+    EVMVersion.HOMESTEAD: HomesteadVM,
+    EVMVersion.TANGERINE_WHISTLE: TangerineWhistleVM,
+    EVMVersion.SPURIOUS_DRAGON: SpuriousDragonVM,
+    EVMVersion.BYZANTIUM: ByzantiumVM,
+    EVMVersion.CONSTANTINOPLE: ConstantinopleVM,
+    EVMVersion.ISTANBUL: IstanbulVM,
+    EVMVersion.BERLIN: BerlinVM,
+    EVMVersion.LONDON: LondonVM,
+    EVMVersion.PARIS: ParisVM,
+    EVMVersion.SHANGHAI: ShanghaiVM,
+    EVMVersion.CANCUN: CancunVM,
+}
 
 
 def _rlp_encode(obj: Any) -> bytes:
@@ -68,12 +99,12 @@ def _rlp_encode(obj: Any) -> bytes:
 
 
 class PyEVMBackend:
-    def __init__(self, root_balance_wei: int, chain_id: int):
+    def __init__(self, root_balance_wei: int, chain_id: int, evm_version: EVMVersion):
         chain_id_ = chain_id
 
         class MainnetTesterPosChain(MiningChain):
             chain_id = chain_id_
-            vm_configuration = ((EthBlockNumber(0), ShanghaiVM),)
+            vm_configuration = ((EthBlockNumber(0), EVM_MAPPING[evm_version]),)
 
             def create_header_from_parent(
                 self, parent_header: BlockHeaderAPI, **header_params: Any
@@ -139,7 +170,7 @@ class PyEVMBackend:
         obj._initialize(copy_chain(self.chain), self.root_private_key, self._total_difficulty)  # noqa: SLF001
         return obj
 
-    def mine_block(self, timestamp: None | int = None) -> Hash32:
+    def mine_block(self, timestamp: None | int = None) -> BlockHash:
         if timestamp is not None:
             current_timestamp = self.chain.header.timestamp
             if timestamp < current_timestamp:
@@ -154,7 +185,7 @@ class PyEVMBackend:
         # ParisVM and forward, generate a random `mix_hash` to simulate the `prevrandao` value.
         mix_hash = os.urandom(32)
 
-        block_hash = Hash32(self.chain.mine_block(coinbase=ZERO_ADDRESS, mix_hash=mix_hash).hash)
+        block_hash = BlockHash(self.chain.mine_block(coinbase=ZERO_ADDRESS, mix_hash=mix_hash).hash)
         self._total_difficulty += self._get_block_by_number(BlockLabel.LATEST).header.difficulty
         return block_hash
 
@@ -193,14 +224,14 @@ class PyEVMBackend:
                 )
         return entries
 
-    def get_log_entries_by_block_hash(self, block_hash: Hash32) -> list[LogEntry]:
+    def get_log_entries_by_block_hash(self, block_hash: BlockHash) -> list[LogEntry]:
         return self._get_log_entries(self._get_block_by_hash(block_hash))
 
     def get_log_entries_by_block_number(self, block: Block) -> list[LogEntry]:
         return self._get_log_entries(self._get_block_by_number(block))
 
-    def get_latest_block_hash(self) -> Hash32:
-        return Hash32(self._get_block_by_number(BlockLabel.LATEST).hash)
+    def get_latest_block_hash(self) -> BlockHash:
+        return BlockHash(self._get_block_by_number(BlockLabel.LATEST).hash)
 
     def get_latest_block_number(self) -> int:
         return self._get_block_by_number(BlockLabel.LATEST).number
@@ -216,9 +247,9 @@ class PyEVMBackend:
             is_pending=is_pending,
         )
 
-    def _get_block_by_hash(self, block_hash: Hash32) -> BlockAPI:
+    def _get_block_by_hash(self, block_hash: BlockHash) -> BlockAPI:
         try:
-            block = self.chain.get_block_by_hash(EthHash32(block_hash))
+            block = self.chain.get_block_by_hash(EthHash32(bytes(block_hash)))
         except HeaderNotFound as exc:
             raise BlockNotFound(f"No block found for block hash: {block_hash.hex()}") from exc
 
@@ -227,10 +258,10 @@ class PyEVMBackend:
 
         return block
 
-    def get_block_number_by_hash(self, block_hash: Hash32) -> int:
+    def get_block_number_by_hash(self, block_hash: BlockHash) -> int:
         return self._get_block_by_hash(block_hash).number
 
-    def get_block_by_hash(self, block_hash: Hash32, *, with_transactions: bool) -> BlockInfo:
+    def get_block_by_hash(self, block_hash: BlockHash, *, with_transactions: bool) -> BlockInfo:
         block = self._get_block_by_hash(block_hash)
         is_pending = block.number == self.chain.get_block().number
         return make_block_info(
@@ -242,25 +273,25 @@ class PyEVMBackend:
         )
 
     def _get_transaction_by_hash(
-        self, transaction_hash: Hash32
+        self, transaction_hash: TxHash
     ) -> tuple[BlockAPI, SignedTransactionAPI, int]:
         head_block = self.chain.get_block()
         for index, transaction in enumerate(head_block.transactions):
-            if Hash32(transaction.hash) == transaction_hash:
+            if TxHash(transaction.hash) == transaction_hash:
                 return head_block, transaction, index
         # Since there is no method in PyEvm to get a transaction by hash directly,
         # we have to go through all the blocks, starting from the most recent ones.
         for block_number in range(head_block.number - 1, -1, -1):
             block = self._get_block_by_number(block_number)
             for index, transaction in enumerate(block.transactions):
-                if Hash32(transaction.hash) == transaction_hash:
+                if TxHash(transaction.hash) == transaction_hash:
                     return block, transaction, index
 
         raise TransactionNotFound(
-            f"No transaction found for transaction hash: {encode_hex(transaction_hash)}"
+            f"No transaction found for transaction hash: {transaction_hash.hex()}"
         )
 
-    def get_transaction_by_hash(self, transaction_hash: Hash32) -> TransactionInfo:
+    def get_transaction_by_hash(self, transaction_hash: TxHash) -> TxInfo:
         block, transaction, transaction_index = self._get_transaction_by_hash(
             transaction_hash,
         )
@@ -273,14 +304,14 @@ class PyEVMBackend:
         block_api = self._get_block_by_number(block)
         return self.chain.get_vm(at_header=block_api.header)
 
-    def get_transaction_receipt(self, transaction_hash: Hash32) -> TransactionReceipt:
+    def get_transaction_receipt(self, transaction_hash: TxHash) -> TxReceipt:
         block, transaction, transaction_index = self._get_transaction_by_hash(
             transaction_hash,
         )
         is_pending = block.number == self.chain.get_block().number
         if is_pending:
             raise TransactionNotFound(
-                f"Transaction {encode_hex(transaction_hash)} is not yet included in a block"
+                f"Transaction {transaction_hash.hex()} is not yet included in a block"
             )
 
         block_receipts = block.get_receipts(self.chain.chaindb)
@@ -294,19 +325,19 @@ class PyEVMBackend:
 
     def get_transaction_count(self, address: Address, block: Block) -> int:
         vm = self._get_vm_for_block_number(block)
-        return vm.state.get_nonce(EthAddress(address))
+        return vm.state.get_nonce(EthAddress(bytes(address)))
 
     def get_balance(self, address: Address, block: Block) -> int:
         vm = self._get_vm_for_block_number(block)
-        return vm.state.get_balance(EthAddress(address))
+        return vm.state.get_balance(EthAddress(bytes(address)))
 
     def get_code(self, address: Address, block: Block) -> bytes:
         vm = self._get_vm_for_block_number(block)
-        return vm.state.get_code(EthAddress(address))
+        return vm.state.get_code(EthAddress(bytes(address)))
 
     def get_storage(self, address: Address, slot: int, block: Block) -> bytes:
         vm = self._get_vm_for_block_number(block)
-        return vm.state.get_storage(EthAddress(address), slot).to_bytes(32, byteorder="big")
+        return vm.state.get_storage(EthAddress(bytes(address)), slot).to_bytes(32, byteorder="big")
 
     def get_base_fee(self, block: Block) -> int:
         vm = self._get_vm_for_block_number(block)
@@ -330,18 +361,18 @@ class PyEVMBackend:
         from_ = params.from_
         header = self._get_block_by_number(block).header
         nonce = self.get_transaction_count(from_, block) if params.nonce is None else params.nonce
-        to = EthAddress(b"" if params.to is None else params.to)
+        to = EthAddress(b"" if params.to is None else bytes(params.to))
 
         evm_transaction = self.chain.create_unsigned_transaction(
-            gas_price=params.gas_price,
-            gas=params.gas if params.gas is not None else header.gas_limit,
+            gas_price=params.gas_price.as_wei() if params.gas_price else 0,
+            gas=params.gas if params.gas else header.gas_limit,
             nonce=nonce,
-            value=params.value,
-            data=params.data if params.data is not None else b"",
+            value=params.value.as_wei() if params.value else 0,
+            data=params.data if params.data else b"",
             to=to,
         )
 
-        spoofed_transaction = SpoofTransaction(evm_transaction, from_=EthAddress(from_))
+        spoofed_transaction = SpoofTransaction(evm_transaction, from_=EthAddress(bytes(from_)))
 
         try:
             # For whatever reason `SpoofTransaction` does not implement `SignedTransactionAPI`,
@@ -359,15 +390,15 @@ class PyEVMBackend:
 
     def call(self, params: EthCallParams, block: Block) -> bytes:
         nonce = self.get_transaction_count(params.from_, block) if params.from_ else 0
-        from_ = EthAddress(params.from_) if params.from_ is not None else ZERO_ADDRESS
+        from_ = EthAddress(bytes(params.from_)) if params.from_ is not None else ZERO_ADDRESS
         header = self._get_block_by_number(block).header
         evm_transaction = self.chain.create_unsigned_transaction(
-            gas_price=params.gas_price,
+            gas_price=params.gas_price.as_wei() if params.gas_price else 0,
             gas=params.gas if params.gas is not None else header.gas_limit,
             nonce=nonce,
-            value=params.value,
+            value=params.value.as_wei() if params.value else 0,
             data=params.data if params.data is not None else b"",
-            to=EthAddress(params.to),
+            to=EthAddress(bytes(params.to)),
         )
         spoofed_transaction = SpoofTransaction(evm_transaction, from_=from_)
 
@@ -396,29 +427,29 @@ def make_block_info(
     with_transactions: bool,
     is_pending: bool,
 ) -> BlockInfo:
-    transactions: list[Hash32] | list[TransactionInfo]
+    transactions: tuple[TxHash, ...] | tuple[TxInfo, ...]
     if with_transactions:
-        transactions = [
+        transactions = tuple(
             make_transaction_info(chain_id, block, transaction, index, is_pending=is_pending)
             for index, transaction in enumerate(block.transactions)
-        ]
+        )
     else:
-        transactions = [Hash32(transaction.hash) for transaction in block.transactions]
+        transactions = tuple(TxHash(transaction.hash) for transaction in block.transactions)
 
     return BlockInfo(
         # While the docs for major provider say that `number` is `null` for pending blocks,
         # it actually isn't in their return values.
         number=block.header.block_number,
-        hash=Hash32(block.header.hash) if not is_pending else None,
-        parent_hash=Hash32(block.header.parent_hash),
+        hash_=BlockHash(block.header.hash) if not is_pending else None,
+        parent_hash=BlockHash(block.header.parent_hash),
         nonce=BlockNonce(block.header.nonce) if not is_pending else None,
-        sha3_uncles=Hash32(block.header.uncles_hash),
+        sha3_uncles=UnclesHash(block.header.uncles_hash),
         logs_bloom=LogsBloom(block.header.bloom.to_bytes(256, byteorder="big"))
         if not is_pending
         else None,
-        transactions_root=Hash32(block.header.transaction_root),
-        state_root=Hash32(block.header.state_root),
-        receipts_root=Hash32(block.header.receipt_root),
+        transactions_root=TrieHash(block.header.transaction_root),
+        state_root=TrieHash(block.header.state_root),
+        receipts_root=TrieHash(block.header.receipt_root),
         miner=Address(block.header.coinbase) if not is_pending else None,
         difficulty=block.header.difficulty if not is_pending else 0,
         total_difficulty=total_difficulty if not is_pending else None,
@@ -431,10 +462,10 @@ def make_block_info(
         # Note: this appears after EIP-1559 upgrade. Ethereum.org does not list this field,
         # but it's returned by providers.
         # Since we create the VM with Shanghai fork, we can safely cast to int here.
-        base_fee_per_gas=cast(int, block.header.base_fee_per_gas),
+        base_fee_per_gas=Amount(cast(int, block.header.base_fee_per_gas)),
         timestamp=block.header.timestamp,
         transactions=transactions,
-        uncles=[Hash32(uncle.hash) for uncle in block.uncles],
+        uncles=tuple(BlockHash(uncle.hash) for uncle in block.uncles),
     )
 
 
@@ -445,12 +476,12 @@ def make_transaction_info(
     transaction_index: int,
     *,
     is_pending: bool,
-) -> TransactionInfo:
+) -> TxInfo:
     txn_type = _extract_transaction_type(transaction)
-    return TransactionInfo(
+    return TxInfo(
         chain_id=chain_id,
-        block_hash=Hash32(block.hash) if not is_pending else None,
-        hash=Hash32(transaction.hash),
+        block_hash=BlockHash(block.hash) if not is_pending else None,
+        hash_=TxHash(transaction.hash),
         nonce=transaction.nonce,
         # While the docs for major provider say that `number` is `null`
         # for pending transactions, it actually isn't in their return values.
@@ -458,18 +489,18 @@ def make_transaction_info(
         transaction_index=None if is_pending else transaction_index,
         from_=Address(transaction.sender),
         to=Address(transaction.to),
-        value=transaction.value,
+        value=Amount(transaction.value),
         gas=transaction.gas,
-        max_fee_per_gas=transaction.max_fee_per_gas,
-        max_priority_fee_per_gas=transaction.max_priority_fee_per_gas,
+        max_fee_per_gas=Amount(transaction.max_fee_per_gas),
+        max_priority_fee_per_gas=Amount(transaction.max_priority_fee_per_gas),
         # It is still being returned by providers
         gas_price=(
-            transaction.max_fee_per_gas
+            Amount(transaction.max_fee_per_gas)
             if is_pending
             else _calculate_effective_gas_price(transaction, block, txn_type)
         ),
-        input=transaction.data,
-        type=txn_type,
+        input_=transaction.data,
+        type_=txn_type,
         r=transaction.r,
         s=transaction.s,
         v=transaction.y_parity,
@@ -481,7 +512,7 @@ def make_transaction_receipt(
     transaction: SignedTransactionAPI,
     receipts: Sequence[ReceiptAPI],
     transaction_index: int,
-) -> TransactionReceipt:
+) -> TxReceipt:
     txn_type = _extract_transaction_type(transaction)
     receipt = receipts[transaction_index]
 
@@ -500,24 +531,24 @@ def make_transaction_receipt(
     else:
         origin_gas = receipts[transaction_index - 1].gas_used
 
-    return TransactionReceipt(
-        block_hash=Hash32(block.hash),
+    return TxReceipt(
+        block_hash=BlockHash(block.hash),
         block_number=block.number,
         contract_address=contract_addr,
         cumulative_gas_used=receipt.gas_used,
         effective_gas_price=_calculate_effective_gas_price(transaction, block, txn_type),
         from_=Address(transaction.sender),
         gas_used=receipt.gas_used - origin_gas,
-        logs=[
+        logs=tuple(
             make_log_entry(block, transaction, transaction_index, log, log_index)
             for log_index, log in enumerate(receipt.logs)
-        ],
+        ),
         logs_bloom=LogsBloom(receipt.bloom.to_bytes(256, byteorder="big")),
         status=1 if receipt.state_root == b"\x01" else 0,
-        to=Address(transaction.to) or None,
-        transaction_hash=Hash32(transaction.hash),
+        to=Address(transaction.to) if transaction.to else None,
+        transaction_hash=TxHash(transaction.hash),
         transaction_index=transaction_index,
-        type=txn_type,
+        type_=txn_type,
     )
 
 
@@ -530,14 +561,14 @@ def make_log_entry(
 ) -> LogEntry:
     return LogEntry(
         address=Address(log.address),
-        block_hash=Hash32(block.hash),
+        block_hash=BlockHash(block.hash),
         block_number=block.number,
         data=log.data,
         log_index=log_index,
         removed=False,
-        topics=[LogTopic(topic.to_bytes(32, byteorder="big")) for topic in log.topics],
+        topics=tuple(LogTopic(topic.to_bytes(32, byteorder="big")) for topic in log.topics),
         transaction_index=transaction_index,
-        transaction_hash=Hash32(transaction.hash),
+        transaction_hash=TxHash(transaction.hash),
     )
 
 
@@ -559,11 +590,11 @@ def _extract_transaction_type(transaction: TransactionFieldsAPI) -> int:
 
 def _calculate_effective_gas_price(
     transaction: TransactionFieldsAPI, block: BlockAPI, transaction_type: int
-) -> int:
+) -> Amount:
     base_fee_per_gas = block.header.base_fee_per_gas
     # It is not None after the London fork.
     assert base_fee_per_gas is not None  # noqa: S101
-    return (
+    return Amount(
         min(
             transaction.max_fee_per_gas,
             transaction.max_priority_fee_per_gas + base_fee_per_gas,

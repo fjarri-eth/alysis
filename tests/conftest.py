@@ -1,6 +1,7 @@
 import pytest
-from alysis import Node, RPCNode
 from eth_account import Account
+
+from alysis import Node, RPCNode
 
 
 @pytest.fixture
