@@ -9,9 +9,11 @@ Changed
 ^^^^^^^
 
 - Bump ``py-evm`` to 0.10.1b1. (PR_24_)
+- Using ``ethereum-rpc`` types. (PR_25_)
 
 
-.. _PR_24: https://github.com/fjarri/alsyis/pull/24
+.. _PR_24: https://github.com/fjarri-eth/alsyis/pull/24
+.. _PR_25: https://github.com/fjarri-eth/alsyis/pull/25
 
 
 0.4.0 (2024-03-15)
@@ -24,7 +26,7 @@ Changed
 - ``compages`` dependency bumped to 0.3. (PR_23_)
 
 
-.. _PR_23: https://github.com/fjarri/alsyis/pull/23
+.. _PR_23: https://github.com/fjarri-eth/alsyis/pull/23
 
 
 0.3.0 (2024-03-09)
@@ -55,10 +57,10 @@ Fixed
 - Calculate ``BlockInfo.total_difficulty`` correctly. (PR_22_)
 
 
-.. _PR_18: https://github.com/fjarri/alsyis/pull/18
-.. _PR_20: https://github.com/fjarri/alsyis/pull/20
-.. _PR_21: https://github.com/fjarri/alsyis/pull/21
-.. _PR_22: https://github.com/fjarri/alsyis/pull/22
+.. _PR_18: https://github.com/fjarri-eth/alsyis/pull/18
+.. _PR_20: https://github.com/fjarri-eth/alsyis/pull/20
+.. _PR_21: https://github.com/fjarri-eth/alsyis/pull/21
+.. _PR_22: https://github.com/fjarri-eth/alsyis/pull/22
 
 
 0.2.0 (2024-03-05)
@@ -70,4 +72,4 @@ Changed
 - Minimum Python version bumped to 3.10. (PR_4_)
 
 
-.. _PR_4: https://github.com/fjarri/alsyis/pull/4
+.. _PR_4: https://github.com/fjarri-eth/alsyis/pull/4

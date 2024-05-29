@@ -65,7 +65,7 @@ class RPCNode:
     def rpc(self, method_name: str, *params: JSON) -> JSON:
         """
         Makes an RPC request to the chain and returns the result on success,
-        or raises :py:class:`RPCError` on failure.
+        or raises :py:class:`ethereum_rpc.RPCError` on failure.
         """
         if method_name not in self._methods:
             raise RPCError.with_code(
