@@ -42,12 +42,10 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.doctest",
     "sphinx.ext.viewcode",
-    "enum_tools.autoenum",
 ]
 
 autoclass_content = "both"
 autodoc_member_order = "groupwise"
-autodoc_type_aliases = {"JSON": "JSON"}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = []
@@ -75,4 +73,5 @@ python_use_unqualified_type_names = True
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
+    "ethereum_rpc": ("https://ethereum-rpc.readthedocs.io/en/v0.1.0", None),
 }

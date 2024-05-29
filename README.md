@@ -13,5 +13,5 @@ For more information see [the documentation](https://alysis.readthedocs.io/en/la
 [pypi-license-image]: https://img.shields.io/pypi/l/alysis
 [rtd-image]: https://readthedocs.org/projects/alysis/badge/?version=latest
 [rtd-link]: https://alysis.readthedocs.io/en/latest/
-[cov-image]: https://codecov.io/gh/fjarri/alysis/branch/master/graph/badge.svg?token=RZP1LK1HB2
-[cov-link]: https://codecov.io/gh/fjarri/alysis
+[cov-image]: https://codecov.io/gh/fjarri-eth/alysis/branch/master/graph/badge.svg?token=RZP1LK1HB2
+[cov-link]: https://codecov.io/gh/fjarri-eth/alysis

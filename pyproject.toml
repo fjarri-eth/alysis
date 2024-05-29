@@ -13,6 +13,7 @@ dependencies = [
     "eth-keys>=0.5",
     "rlp>=4",
     "compages>=0.3.0",
+    "ethereum-rpc>=0.1",
 ]
 requires-python = ">=3.10"
 classifiers = [
@@ -25,7 +26,7 @@ license = { file = "LICENSE.md" }
 readme = "README.md"
 
 [project.urls]
-homepage = "https://github.com/fjarri/alysis"
+homepage = "https://github.com/fjarri-eth/alysis"
 
 [project.optional-dependencies]
 tests = [
@@ -37,7 +38,6 @@ docs = [
     "sphinx>=4",
     "furo",
     "setuptools-scm",
-    "enum-tools[sphinx]",
 ]
 lint = [
     "mypy>=1.4",
@@ -75,6 +75,9 @@ line-length = 100
 [tool.ruff.lint.pyupgrade]
 # Don't suggest fixes not compatible with the specified target-version of Python
 keep-runtime-typing = true
+
+[tool.ruff.lint.isort]
+known-first-party = ["alysis"]
 
 [tool.ruff.lint]
 select = ["ALL"]
