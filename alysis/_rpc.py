@@ -1,7 +1,5 @@
 """RPC-like API, mimicking the behavior of major Ethereum providers."""
 
-from typing import cast
-
 from compages import StructuringError, UnstructuringError
 from ethereum_rpc import (
     JSON,
@@ -122,29 +120,23 @@ class RPCNode:
         return unstructure(self.node.eth_block_number())
 
     def _eth_get_balance(self, params: tuple[JSON, ...]) -> JSON:
-        # Currently `mypy` has problems with generic Tuples in Type:
-        # https://github.com/python/mypy/issues/16935
-        # So we have to cast manually here, and in similar situations below.
-        address, block = cast(tuple[Address, Block], structure(tuple[Address, Block], params))
+        address, block = structure(tuple[Address, Block], params)
         return unstructure(self.node.eth_get_balance(address, block))
 
     def _eth_get_code(self, params: tuple[JSON, ...]) -> JSON:
-        address, block = cast(tuple[Address, Block], structure(tuple[Address, Block], params))
+        address, block = structure(tuple[Address, Block], params)
         return unstructure(self.node.eth_get_code(address, block))
 
     def _eth_get_storage_at(self, params: tuple[JSON, ...]) -> JSON:
-        address, slot, block = cast(
-            tuple[Address, int, Block],
-            structure(tuple[Address, int, Block], params),
-        )
+        address, slot, block = structure(tuple[Address, int, Block], params)
         return unstructure(self.node.eth_get_storage_at(address, slot, block))
 
     def _eth_get_transaction_count(self, params: tuple[JSON, ...]) -> JSON:
-        address, block = cast(tuple[Address, Block], structure(tuple[Address, Block], params))
+        address, block = structure(tuple[Address, Block], params)
         return unstructure(self.node.eth_get_transaction_count(address, block))
 
     def _eth_get_transaction_by_hash(self, params: tuple[JSON, ...]) -> JSON:
-        (transaction_hash,) = cast(tuple[TxHash], structure(tuple[TxHash], params))
+        (transaction_hash,) = structure(tuple[TxHash], params)
         try:
             transaction = self.node.eth_get_transaction_by_hash(transaction_hash)
         except TransactionNotFound:
@@ -152,7 +144,7 @@ class RPCNode:
         return unstructure(transaction)
 
     def _eth_get_block_by_number(self, params: tuple[JSON, ...]) -> JSON:
-        block, with_transactions = cast(tuple[Block, bool], structure(tuple[Block, bool], params))
+        block, with_transactions = structure(tuple[Block, bool], params)
         try:
             block_info = self.node.eth_get_block_by_number(
                 block, with_transactions=with_transactions
@@ -162,10 +154,7 @@ class RPCNode:
         return unstructure(block_info)
 
     def _eth_get_block_by_hash(self, params: tuple[JSON, ...]) -> JSON:
-        block_hash, with_transactions = cast(
-            tuple[BlockHash, bool],
-            structure(tuple[BlockHash, bool], params),
-        )
+        block_hash, with_transactions = structure(tuple[BlockHash, bool], params)
         try:
             block_info = self.node.eth_get_block_by_hash(
                 block_hash, with_transactions=with_transactions
@@ -175,7 +164,7 @@ class RPCNode:
         return unstructure(block_info)
 
     def _eth_get_transaction_receipt(self, params: tuple[JSON, ...]) -> JSON:
-        (transaction_hash,) = cast(tuple[TxHash], structure(tuple[TxHash], params))
+        (transaction_hash,) = structure(tuple[TxHash], params)
         try:
             receipt = self.node.eth_get_transaction_receipt(transaction_hash)
         except TransactionNotFound:
@@ -183,21 +172,15 @@ class RPCNode:
         return unstructure(receipt)
 
     def _eth_send_raw_transaction(self, params: tuple[JSON, ...]) -> JSON:
-        (raw_transaction,) = cast(tuple[bytes], structure(tuple[bytes], params))
+        (raw_transaction,) = structure(tuple[bytes], params)
         return unstructure(self.node.eth_send_raw_transaction(raw_transaction))
 
     def _eth_call(self, params: tuple[JSON, ...]) -> JSON:
-        transaction, block = cast(
-            tuple[EthCallParams, Block],
-            structure(tuple[EthCallParams, Block], params),
-        )
+        transaction, block = structure(tuple[EthCallParams, Block], params)
         return unstructure(self.node.eth_call(transaction, block))
 
     def _eth_estimate_gas(self, params: tuple[JSON, ...]) -> JSON:
-        transaction, block = cast(
-            tuple[EstimateGasParams, Block],
-            structure(tuple[EstimateGasParams, Block], params),
-        )
+        transaction, block = structure(tuple[EstimateGasParams, Block], params)
         return unstructure(self.node.eth_estimate_gas(transaction, block))
 
     def _eth_gas_price(self, params: tuple[JSON, ...]) -> JSON:
@@ -213,23 +196,20 @@ class RPCNode:
         return unstructure(self.node.eth_new_pending_transaction_filter())
 
     def _eth_new_filter(self, params: tuple[JSON, ...]) -> JSON:
-        (typed_params,) = cast(tuple[FilterParams], structure(tuple[FilterParams], params))
+        (typed_params,) = structure(tuple[FilterParams], params)
         return unstructure(self.node.eth_new_filter(typed_params))
 
     def _eth_get_filter_changes(self, params: tuple[JSON, ...]) -> JSON:
-        (filter_id,) = cast(tuple[int], structure(tuple[int], params))
+        (filter_id,) = structure(tuple[int], params)
         return unstructure(
             self.node.eth_get_filter_changes(filter_id),
             list[LogEntry] | list[TxHash] | list[BlockHash],
         )
 
     def _eth_get_filter_logs(self, params: tuple[JSON, ...]) -> JSON:
-        (filter_id,) = cast(tuple[int], structure(tuple[int], params))
+        (filter_id,) = structure(tuple[int], params)
         return unstructure(self.node.eth_get_filter_logs(filter_id), list[LogEntry])
 
     def _eth_get_logs(self, params: tuple[JSON, ...]) -> JSON:
-        (typed_params,) = cast(
-            tuple[FilterParams | FilterParamsEIP234],
-            structure(tuple[FilterParams | FilterParamsEIP234], params),
-        )
+        (typed_params,) = structure(tuple[FilterParams | FilterParamsEIP234], params)
         return unstructure(self.node.eth_get_logs(typed_params), list[LogEntry])

@@ -8,8 +8,8 @@ authors = [
 dependencies = [
     "eth-utils>=3",
     "setuptools", # required by eth-utils, but it just assumes that it's already installed
-    "py-evm==0.10.1b1", # py-evm doesn't have normal releases, so have to fix the version
-    "eth-typing>=4",
+    "py-evm==0.12.1-beta.1", # py-evm doesn't have normal releases, so have to fix the version
+    "eth-typing>=5.2",
     "eth-keys>=0.5",
     "rlp>=4",
     "compages>=0.3.0",
@@ -86,14 +86,10 @@ ignore = [
     "C408",
     # It's never a problem unless you mutate function arguments (which is rarely a good idea).
     "B008",
-    # The type of `self` is derived automatically.
-    "ANN101",
     # We use `Any` quite a bit because we need to accept a lot of third-party unnormalized input.
     "ANN401",
     # The return type of `__init__` is derived automatically.
     "ANN204",
-    # The type of `cls` in classmethods is derived automatically.
-    "ANN102",
     # Doesn't mesh well with the way `black` puts the final parenthesis on a separate line
     # in functions with one parameter and a long argument.
     "COM812",
@@ -134,7 +130,7 @@ ignore = [
     # This should be decided on a case-by-case basis, sometimes it just hurts readability.
     "PERF401",
     # This is only valid if we use `from __future__ import annotations`.
-    "TCH002",
+    "TC002",
 ]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.

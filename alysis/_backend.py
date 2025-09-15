@@ -95,7 +95,7 @@ EVM_MAPPING = {
 
 def _rlp_encode(obj: Any) -> bytes:
     # Force typing here, since `rlp` is not typed
-    return cast(bytes, rlp.encode(obj))
+    return cast("bytes", rlp.encode(obj))
 
 
 class PyEVMBackend:
@@ -143,7 +143,7 @@ class PyEVMBackend:
         }
 
         chain = cast(
-            MiningChain,
+            "MiningChain",
             MainnetTesterPosChain.from_genesis(get_db_backend(), genesis_params, genesis_state),
         )
 
@@ -377,7 +377,9 @@ class PyEVMBackend:
         try:
             # For whatever reason `SpoofTransaction` does not implement `SignedTransactionAPI`,
             # but has the same duck type.
-            return self.chain.estimate_gas(cast(SignedTransactionAPI, spoofed_transaction), header)
+            return self.chain.estimate_gas(
+                cast("SignedTransactionAPI", spoofed_transaction), header
+            )
 
         except EthValidationError as exc:
             raise ValidationError(f"Invalid transaction: {exc}") from exc
@@ -406,7 +408,7 @@ class PyEVMBackend:
             # For whatever reason `SpoofTransaction` does not implement `SignedTransactionAPI`,
             # but has the same duck type.
             return self.chain.get_transaction_result(
-                cast(SignedTransactionAPI, spoofed_transaction), header
+                cast("SignedTransactionAPI", spoofed_transaction), header
             )
 
         except EthValidationError as exc:
@@ -462,7 +464,7 @@ def make_block_info(
         # Note: this appears after EIP-1559 upgrade. Ethereum.org does not list this field,
         # but it's returned by providers.
         # Since we create the VM with Shanghai fork, we can safely cast to int here.
-        base_fee_per_gas=Amount(cast(int, block.header.base_fee_per_gas)),
+        base_fee_per_gas=Amount(cast("int", block.header.base_fee_per_gas)),
         timestamp=block.header.timestamp,
         transactions=transactions,
         uncles=tuple(BlockHash(uncle.hash) for uncle in block.uncles),

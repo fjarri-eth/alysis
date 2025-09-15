@@ -2,6 +2,19 @@ Changelog
 =========
 
 
+0.6.0 (unreleased)
+------------------
+
+Changed
+^^^^^^^
+
+- Bump ``py-evm`` to 0.12.1-beta.1. (PR_26_)
+
+
+.. _PR_26: https://github.com/fjarri/compages/pull/26
+
+
+
 0.5.0 (2024-05-28)
 ------------------
 
