@@ -2,6 +2,19 @@ Changelog
 =========
 
 
+0.6.1 (in development)
+----------------------
+
+Added
+^^^^^
+
+- ``EVMVersion.PRAGUE`` constant.
+
+
+.. _PR_27: https://github.com/fjarri/compages/pull/27
+
+
+
 0.6.0 (2025-09-15)
 ------------------
 

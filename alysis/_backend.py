@@ -35,6 +35,7 @@ from eth.vm.forks import (
     IstanbulVM,
     LondonVM,
     ParisVM,
+    PragueVM,
     ShanghaiVM,
     SpuriousDragonVM,
     TangerineWhistleVM,
@@ -90,6 +91,7 @@ EVM_MAPPING = {
     EVMVersion.PARIS: ParisVM,
     EVMVersion.SHANGHAI: ShanghaiVM,
     EVMVersion.CANCUN: CancunVM,
+    EVMVersion.PRAGUE: PragueVM,
 }
 
 
