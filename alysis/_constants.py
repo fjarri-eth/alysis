@@ -39,3 +39,6 @@ class EVMVersion(Enum):
 
     CANCUN = "cancun"
     """Cancun fork, Mar 13, 2024."""
+
+    PRAGUE = "prague"
+    """Prague fork, May 7, 2025."""

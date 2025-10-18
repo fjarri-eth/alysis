@@ -114,7 +114,7 @@ class Node:
         self,
         *,
         root_balance_wei: int,
-        evm_version: EVMVersion = EVMVersion.CANCUN,
+        evm_version: EVMVersion = EVMVersion.PRAGUE,
         chain_id: int = DEFAULT_ID,
         net_version: int = 1,
         auto_mine_transactions: bool = True,
