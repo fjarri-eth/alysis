@@ -1,6 +1,17 @@
 Changelog
 =========
 
+0.6.2 (in development)
+----------------------
+
+Fixed
+^^^^^
+
+- Fixed error when deep copying ``Node`` in newer Python versions (PR_28_).
+
+
+.. _PR_28: https://github.com/fjarri/compages/pull/28
+
 
 0.6.1 (2025-18-10)
 ------------------
@@ -8,7 +19,7 @@ Changelog
 Added
 ^^^^^
 
-- ``EVMVersion.PRAGUE`` constant.
+- ``EVMVersion.PRAGUE`` constant (PR_27_).
 
 
 .. _PR_27: https://github.com/fjarri/compages/pull/27
