@@ -1,5 +1,3 @@
-import itertools
-from collections.abc import Iterator
 from copy import deepcopy
 from typing import Any
 
@@ -126,7 +124,7 @@ class Node:
             backend=backend,
             net_version=net_version,
             auto_mine_transactions=auto_mine_transactions,
-            filter_counter=itertools.count(),
+            filter_counter=0,
             log_filters={},
             log_filter_entries={},
             block_filters={},
@@ -138,7 +136,7 @@ class Node:
         backend: PyEVMBackend,
         net_version: int,
         auto_mine_transactions: bool,  # noqa: FBT001
-        filter_counter: Iterator[int],
+        filter_counter: int,
         log_filters: dict[int, LogFilter],
         log_filter_entries: dict[int, list[LogEntry]],
         block_filters: dict[int, list[BlockHash]],
@@ -166,7 +164,7 @@ class Node:
             backend=deepcopy(self._backend, memo),
             net_version=self._net_version,
             auto_mine_transactions=self._auto_mine_transactions,
-            filter_counter=deepcopy(self._filter_counter, memo),
+            filter_counter=self._filter_counter,
             # Shallow copy is enough, LogFilter objects are immutable
             log_filters=dict(self._log_filters),
             # One level deep copy is enough here
@@ -332,7 +330,8 @@ class Node:
         Creates a filter in the node, to notify when a new block arrives.
         Returns the identifier of the created filter.
         """
-        filter_id = next(self._filter_counter)
+        filter_id = self._filter_counter
+        self._filter_counter += 1
         self._block_filters[filter_id] = []
         return filter_id
 
@@ -341,7 +340,8 @@ class Node:
         Creates a filter in the node, to notify when new pending transactions arrive.
         Returns the identifier of the created filter.
         """
-        filter_id = next(self._filter_counter)
+        filter_id = self._filter_counter
+        self._filter_counter += 1
         self._pending_transaction_filters[filter_id] = []
         return filter_id
 
@@ -350,7 +350,8 @@ class Node:
         Creates a filter object, based on filter options, to notify when the state changes (logs).
         Returns the identifier of the created filter.
         """
-        filter_id = next(self._filter_counter)
+        filter_id = self._filter_counter
+        self._filter_counter += 1
 
         current_block_number = self._backend.get_latest_block_number()
         log_filter = LogFilter(params, current_block_number)
