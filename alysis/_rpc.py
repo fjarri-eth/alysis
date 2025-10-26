@@ -38,6 +38,7 @@ class RPCNode:
         self.node = node
         self._methods = dict(
             net_version=self._net_version,
+            web3_clientVersion=self._web3_client_version,
             eth_accounts=self._eth_accounts,
             eth_chainId=self._eth_chain_id,
             eth_getBalance=self._eth_get_balance,
@@ -111,6 +112,10 @@ class RPCNode:
         _ = structure(tuple[()], params)
         # Note: it's not hex encoded, but just stringified!
         return str(self.node.net_version())
+
+    def _web3_client_version(self, params: tuple[JSON, ...]) -> JSON:
+        _ = structure(tuple[()], params)
+        return self.node.web3_client_version()
 
     def _eth_chain_id(self, params: tuple[JSON, ...]) -> JSON:
         _ = structure(tuple[()], params)

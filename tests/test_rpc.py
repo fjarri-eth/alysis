@@ -19,3 +19,7 @@ def test_eth_get_balance(rpc_node, root_account, another_account):
 
 def test_eth_accounts(rpc_node):
     assert rpc_node.rpc("eth_accounts") == []
+
+
+def test_web3_client_version(rpc_node):
+    assert rpc_node.rpc("web3_clientVersion") == "Alysis testerchain"

@@ -207,6 +207,9 @@ class Node:
         """Returns the current network id."""
         return self._net_version
 
+    def web3_client_version(self) -> str:
+        return "Alysis testerchain"
+
     def eth_chain_id(self) -> int:
         """Returns the chain ID used for signing replay-protected transactions."""
         return self._backend.chain_id
