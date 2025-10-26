@@ -172,6 +172,12 @@ class PyEVMBackend:
         obj._initialize(copy_chain(self.chain), self.root_private_key, self._total_difficulty)  # noqa: SLF001
         return obj
 
+    @property
+    def coinbase(self) -> Address:
+        # Don't see an easy way to get it out of PyEVM,
+        # but that's what we supply in the genesis parameters.
+        return Address(ZERO_ADDRESS)
+
     def mine_block(self, timestamp: None | int = None) -> BlockHash:
         if timestamp is not None:
             current_timestamp = self.chain.header.timestamp

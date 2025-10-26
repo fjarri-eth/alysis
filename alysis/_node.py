@@ -460,3 +460,6 @@ class Node:
         # Returning a non-zero number in case there's some application
         # that uses it to test the provider's liveness or something.
         return 42
+
+    def eth_coinbase(self) -> Address:
+        return self._backend.coinbase

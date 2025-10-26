@@ -38,3 +38,7 @@ def test_net_listening(rpc_node):
 
 def test_net_peer_count(rpc_node):
     assert rpc_node.rpc("net_peerCount") == hex(42)
+
+
+def test_eth_coinbase(rpc_node):
+    assert rpc_node.rpc("eth_coinbase") == "0x" + (20 * b"\x00").hex()

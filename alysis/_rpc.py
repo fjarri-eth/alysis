@@ -63,6 +63,7 @@ class RPCNode:
             web3_sha3=self._web3_sha3,
             net_listening=self._net_listening,
             net_peerCount=self._net_peer_count,
+            eth_coinbase=self._eth_coinbase,
         )
 
     def rpc(self, method_name: str, *params: JSON) -> JSON:
@@ -238,3 +239,7 @@ class RPCNode:
     def _net_peer_count(self, params: tuple[JSON, ...]) -> JSON:
         _ = structure(tuple[()], params)
         return unstructure(self.node.net_peer_count())
+
+    def _eth_coinbase(self, params: tuple[JSON, ...]) -> JSON:
+        _ = structure(tuple[()], params)
+        return unstructure(self.node.eth_coinbase())
