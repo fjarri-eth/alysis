@@ -34,3 +34,7 @@ def test_web3_sha3(rpc_node):
 
 def test_net_listening(rpc_node):
     assert rpc_node.rpc("net_listening")
+
+
+def test_net_peer_count(rpc_node):
+    assert rpc_node.rpc("net_peerCount") == hex(42)

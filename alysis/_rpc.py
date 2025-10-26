@@ -62,6 +62,7 @@ class RPCNode:
             eth_getFilterLogs=self._eth_get_filter_logs,
             web3_sha3=self._web3_sha3,
             net_listening=self._net_listening,
+            net_peerCount=self._net_peer_count,
         )
 
     def rpc(self, method_name: str, *params: JSON) -> JSON:
@@ -233,3 +234,7 @@ class RPCNode:
     def _net_listening(self, params: tuple[JSON, ...]) -> JSON:
         _ = structure(tuple[()], params)
         return unstructure(self.node.net_listening())
+
+    def _net_peer_count(self, params: tuple[JSON, ...]) -> JSON:
+        _ = structure(tuple[()], params)
+        return unstructure(self.node.net_peer_count())

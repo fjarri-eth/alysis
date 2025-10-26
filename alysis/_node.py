@@ -455,3 +455,8 @@ class Node:
     def net_listening(self) -> bool:
         # That's what a real provider would return.
         return True
+
+    def net_peer_count(self) -> int:
+        # Returning a non-zero number in case there's some application
+        # that uses it to test the provider's liveness or something.
+        return 42
