@@ -60,6 +60,7 @@ class RPCNode:
             eth_getFilterChanges=self._eth_get_filter_changes,
             eth_getLogs=self._eth_get_logs,
             eth_getFilterLogs=self._eth_get_filter_logs,
+            web3_sha3=self._web3_sha3,
         )
 
     def rpc(self, method_name: str, *params: JSON) -> JSON:
@@ -223,3 +224,7 @@ class RPCNode:
     def _eth_accounts(self, params: tuple[JSON, ...]) -> JSON:
         _ = structure(tuple[()], params)
         return unstructure(self.node.eth_accounts(), list[Address])
+
+    def _web3_sha3(self, params: tuple[JSON, ...]) -> JSON:
+        (data,) = structure(tuple[bytes], params)
+        return unstructure(self.node.web3_sha3(data))

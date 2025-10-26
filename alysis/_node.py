@@ -16,6 +16,7 @@ from ethereum_rpc import (
     TxHash,
     TxInfo,
     TxReceipt,
+    keccak,
 )
 
 from ._backend import PyEVMBackend
@@ -209,6 +210,9 @@ class Node:
 
     def web3_client_version(self) -> str:
         return "Alysis testerchain"
+
+    def web3_sha3(self, data: bytes) -> bytes:
+        return keccak(data)
 
     def eth_chain_id(self) -> int:
         """Returns the chain ID used for signing replay-protected transactions."""
