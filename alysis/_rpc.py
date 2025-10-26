@@ -21,6 +21,7 @@ from ethereum_rpc import (
 
 from ._exceptions import (
     BlockNotFound,
+    FilterNotFound,
     IndexNotFound,
     TransactionFailed,
     TransactionNotFound,
@@ -62,6 +63,7 @@ class RPCNode:
             eth_getFilterChanges=self._eth_get_filter_changes,
             eth_getLogs=self._eth_get_logs,
             eth_getFilterLogs=self._eth_get_filter_logs,
+            eth_uninstallFilter=self._eth_uninstall_filter,
             web3_sha3=self._web3_sha3,
             net_listening=self._net_listening,
             net_peerCount=self._net_peer_count,
@@ -93,7 +95,7 @@ class RPCNode:
             # If we didn't process it earlier, it's a SERVER_ERROR
             raise RPCError.with_code(RPCErrorCode.SERVER_ERROR, str(exc)) from exc
 
-        except IndexNotFound as exc:
+        except (FilterNotFound, IndexNotFound) as exc:
             # That's what the providers seem to return.
             raise RPCError.with_code(RPCErrorCode.METHOD_NOT_FOUND, str(exc)) from exc
 
@@ -237,6 +239,16 @@ class RPCNode:
     def _eth_get_logs(self, params: tuple[JSON, ...]) -> JSON:
         (typed_params,) = structure(tuple[FilterParams | FilterParamsEIP234], params)
         return unstructure(self.node.eth_get_logs(typed_params), list[LogEntry])
+
+    def _eth_uninstall_filter(self, params: tuple[JSON, ...]) -> JSON:
+        (filter_id,) = structure(tuple[int], params)
+        # Unlike other filter operations, a non-existent filter does not cause an error.
+        try:
+            self.node.eth_uninstall_filter(filter_id)
+            result = True
+        except FilterNotFound:
+            result = False
+        return unstructure(result)
 
     def _eth_accounts(self, params: tuple[JSON, ...]) -> JSON:
         _ = structure(tuple[()], params)

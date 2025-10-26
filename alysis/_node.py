@@ -377,7 +377,7 @@ class Node:
         elif filter_id in self._log_filters:
             del self._log_filters[filter_id]
         else:
-            raise FilterNotFound("Unknown filter id")
+            raise FilterNotFound(f"Unknown filter id: {filter_id}")
 
     def eth_get_filter_changes(
         self, filter_id: int
@@ -406,7 +406,7 @@ class Node:
             self._log_filter_entries[filter_id] = []
             return log_entries
 
-        raise FilterNotFound("Unknown filter id")
+        raise FilterNotFound(f"Unknown filter id: {filter_id}")
 
     def _get_logs(self, log_filter: LogFilter) -> list[LogEntry]:
         entries = []
@@ -441,9 +441,21 @@ class Node:
         if filter_id in self._log_filters:
             log_filter = self._log_filters[filter_id]
         else:
-            raise FilterNotFound("Unknown filter id")
+            raise FilterNotFound(f"Unknown filter id: {filter_id}")
 
         return self._get_logs(log_filter)
+
+    def eth_uninstall_filter(self, filter_id: int) -> None:
+        if filter_id in self._log_filters:
+            del self._log_filters[filter_id]
+            return
+        if filter_id in self._block_filters:
+            del self._block_filters[filter_id]
+            return
+        if filter_id in self._pending_transaction_filters:
+            del self._pending_transaction_filters[filter_id]
+            return
+        raise FilterNotFound(f"Unknown filter id: {filter_id}")
 
     def eth_accounts(self) -> list[Address]:
         # Returning an empty list allows us to not implement the related methods
