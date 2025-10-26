@@ -437,3 +437,10 @@ class Node:
             raise FilterNotFound("Unknown filter id")
 
         return self._get_logs(log_filter)
+
+    def eth_accounts(self) -> list[Address]:
+        # Returning an empty list allows us to not implement the related methods
+        # (eth_sign, eth_signTransaction, eth_sendTransaction).
+        #
+        # It is generally not a good idea to keep private keys on the provider's side anyway.
+        return []

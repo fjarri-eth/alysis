@@ -15,3 +15,7 @@ def test_eth_get_balance(rpc_node, root_account, another_account):
 
     result = rpc_node.rpc("eth_getBalance", another_account.address, "latest")
     assert result == hex(10**9)
+
+
+def test_eth_accounts(rpc_node):
+    assert rpc_node.rpc("eth_accounts") == []

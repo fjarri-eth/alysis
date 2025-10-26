@@ -38,6 +38,7 @@ class RPCNode:
         self.node = node
         self._methods = dict(
             net_version=self._net_version,
+            eth_accounts=self._eth_accounts,
             eth_chainId=self._eth_chain_id,
             eth_getBalance=self._eth_get_balance,
             eth_getTransactionReceipt=self._eth_get_transaction_receipt,
@@ -213,3 +214,7 @@ class RPCNode:
     def _eth_get_logs(self, params: tuple[JSON, ...]) -> JSON:
         (typed_params,) = structure(tuple[FilterParams | FilterParamsEIP234], params)
         return unstructure(self.node.eth_get_logs(typed_params), list[LogEntry])
+
+    def _eth_accounts(self, params: tuple[JSON, ...]) -> JSON:
+        _ = structure(tuple[()], params)
+        return unstructure(self.node.eth_accounts(), list[Address])
