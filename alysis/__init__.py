@@ -4,6 +4,7 @@ from ._constants import EVMVersion
 from ._exceptions import (
     BlockNotFound,
     FilterNotFound,
+    IndexNotFound,
     TransactionFailed,
     TransactionNotFound,
     TransactionReverted,
@@ -17,6 +18,7 @@ __all__ = [
     "EVMVersion",
     "FilterNotFound",
     "FilterParams",
+    "IndexNotFound",
     "Node",
     "RPCNode",
     "TransactionFailed",

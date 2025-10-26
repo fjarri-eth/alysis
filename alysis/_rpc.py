@@ -6,6 +6,7 @@ from ethereum_rpc import (
     Address,
     Block,
     BlockHash,
+    BlockInfo,
     EstimateGasParams,
     EthCallParams,
     FilterParams,
@@ -20,6 +21,7 @@ from ethereum_rpc import (
 
 from ._exceptions import (
     BlockNotFound,
+    IndexNotFound,
     TransactionFailed,
     TransactionNotFound,
     TransactionReverted,
@@ -64,6 +66,14 @@ class RPCNode:
             net_listening=self._net_listening,
             net_peerCount=self._net_peer_count,
             eth_coinbase=self._eth_coinbase,
+            eth_getBlockTransactionCountByHash=self._eth_get_block_transaction_count_by_hash,
+            eth_getBlockTransactionCountByNumber=self._eth_get_block_transaction_count_by_number,
+            eth_getUncleCountByBlockHash=self._eth_get_uncle_count_by_block_hash,
+            eth_getUncleCountByBlockNumber=self._eth_get_uncle_count_by_block_number,
+            eth_getTransactionByBlockHashAndIndex=self._eth_get_transaction_by_block_hash_and_index,
+            eth_getTransactionByBlockNumberAndIndex=self._eth_get_transaction_by_block_number_and_index,
+            eth_getUncleByBlockHashAndIndex=self._eth_get_uncle_by_block_hash_and_index,
+            eth_getUncleByBlockNumberAndIndex=self._eth_get_uncle_by_block_number_and_index,
         )
 
     def rpc(self, method_name: str, *params: JSON) -> JSON:
@@ -82,6 +92,10 @@ class RPCNode:
         except (BlockNotFound, TransactionNotFound) as exc:
             # If we didn't process it earlier, it's a SERVER_ERROR
             raise RPCError.with_code(RPCErrorCode.SERVER_ERROR, str(exc)) from exc
+
+        except IndexNotFound as exc:
+            # That's what the providers seem to return.
+            raise RPCError.with_code(RPCErrorCode.METHOD_NOT_FOUND, str(exc)) from exc
 
         except (StructuringError, ValidationError) as exc:
             raise RPCError.with_code(RPCErrorCode.INVALID_PARAMETER, str(exc)) from exc
@@ -243,3 +257,39 @@ class RPCNode:
     def _eth_coinbase(self, params: tuple[JSON, ...]) -> JSON:
         _ = structure(tuple[()], params)
         return unstructure(self.node.eth_coinbase())
+
+    def _eth_get_block_transaction_count_by_hash(self, params: tuple[JSON, ...]) -> JSON:
+        (block_hash,) = structure(tuple[BlockHash], params)
+        return unstructure(self.node.eth_get_block_transaction_count_by_hash(block_hash))
+
+    def _eth_get_block_transaction_count_by_number(self, params: tuple[JSON, ...]) -> JSON:
+        (block,) = structure(tuple[Block], params)
+        return unstructure(self.node.eth_get_block_transaction_count_by_number(block))
+
+    def _eth_get_uncle_count_by_block_hash(self, params: tuple[JSON, ...]) -> JSON:
+        (block_hash,) = structure(tuple[BlockHash], params)
+        return unstructure(self.node.eth_get_uncle_count_by_block_hash(block_hash))
+
+    def _eth_get_uncle_count_by_block_number(self, params: tuple[JSON, ...]) -> JSON:
+        (block,) = structure(tuple[Block], params)
+        return unstructure(self.node.eth_get_uncle_count_by_block_number(block))
+
+    def _eth_get_transaction_by_block_hash_and_index(self, params: tuple[JSON, ...]) -> JSON:
+        (block_hash, index) = structure(tuple[BlockHash, int], params)
+        return unstructure(self.node.eth_get_transaction_by_block_hash_and_index(block_hash, index))
+
+    def _eth_get_transaction_by_block_number_and_index(self, params: tuple[JSON, ...]) -> JSON:
+        (block, index) = structure(tuple[Block, int], params)
+        return unstructure(self.node.eth_get_transaction_by_block_number_and_index(block, index))
+
+    def _eth_get_uncle_by_block_hash_and_index(self, params: tuple[JSON, ...]) -> JSON:
+        (block_hash, index) = structure(tuple[BlockHash, int], params)
+        return unstructure(
+            self.node.eth_get_uncle_by_block_hash_and_index(block_hash, index), BlockInfo | None
+        )
+
+    def _eth_get_uncle_by_block_number_and_index(self, params: tuple[JSON, ...]) -> JSON:
+        (block, index) = structure(tuple[Block, int], params)
+        return unstructure(
+            self.node.eth_get_uncle_by_block_number_and_index(block, index), BlockInfo | None
+        )

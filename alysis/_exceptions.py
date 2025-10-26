@@ -10,6 +10,10 @@ class TransactionNotFound(Exception):
     """Requested transaction cannot be found."""
 
 
+class IndexNotFound(Exception):
+    """Requested index is outside of the available range."""
+
+
 class FilterNotFound(Exception):
     """Requested filter cannot be found."""
 

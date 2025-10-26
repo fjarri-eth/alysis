@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 
 from ethereum_rpc import (
     Address,
@@ -21,7 +21,7 @@ from ethereum_rpc import (
 
 from ._backend import PyEVMBackend
 from ._constants import EVMVersion
-from ._exceptions import FilterNotFound, ValidationError
+from ._exceptions import FilterNotFound, IndexNotFound, ValidationError
 
 
 class LogFilter:
@@ -463,3 +463,51 @@ class Node:
 
     def eth_coinbase(self) -> Address:
         return self._backend.coinbase
+
+    def eth_get_block_transaction_count_by_hash(self, block_hash: BlockHash) -> int:
+        return len(self.eth_get_block_by_hash(block_hash, with_transactions=False).transactions)
+
+    def eth_get_block_transaction_count_by_number(self, block: Block) -> int:
+        return len(self.eth_get_block_by_number(block, with_transactions=False).transactions)
+
+    def eth_get_uncle_count_by_block_hash(self, block_hash: BlockHash) -> int:
+        return len(self.eth_get_block_by_hash(block_hash, with_transactions=False).uncles)
+
+    def eth_get_uncle_count_by_block_number(self, block: Block) -> int:
+        return len(self.eth_get_block_by_number(block, with_transactions=False).uncles)
+
+    def eth_get_transaction_by_block_hash_and_index(
+        self, block_hash: BlockHash, index: int
+    ) -> TxInfo:
+        block_info = self.eth_get_block_by_hash(block_hash, with_transactions=True)
+        if index < 0 or index >= len(block_info.transactions):
+            raise IndexNotFound(
+                f"{len(block_info.transactions)} transactions available, requested index {index}"
+            )
+        # Can cast here since we requested a block with transactions above
+        return cast("TxInfo", block_info.transactions[index])
+
+    def eth_get_transaction_by_block_number_and_index(self, block: Block, index: int) -> TxInfo:
+        block_info = self.eth_get_block_by_number(block, with_transactions=True)
+        if index < 0 or index >= len(block_info.transactions):
+            raise IndexNotFound(
+                f"{len(block_info.transactions)} transactions available, requested index {index}"
+            )
+        # Can cast here since we requested a block with transactions above
+        return cast("TxInfo", block_info.transactions[index])
+
+    def eth_get_uncle_by_block_hash_and_index(
+        self, block_hash: BlockHash, index: int
+    ) -> BlockInfo | None:
+        block_info = self.eth_get_block_by_hash(block_hash, with_transactions=False)
+        if index < 0 or index >= len(block_info.uncles):
+            # Following the behavior of the providers
+            return None
+        return self.eth_get_block_by_hash(block_info.uncles[index], with_transactions=False)
+
+    def eth_get_uncle_by_block_number_and_index(self, block: Block, index: int) -> BlockInfo | None:
+        block_info = self.eth_get_block_by_number(block, with_transactions=False)
+        if index < 0 or index >= len(block_info.uncles):
+            # Following the behavior of the providers
+            return None
+        return self.eth_get_block_by_hash(block_info.uncles[index], with_transactions=False)
