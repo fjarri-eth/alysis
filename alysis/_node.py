@@ -451,3 +451,7 @@ class Node:
         #
         # It is generally not a good idea to keep private keys on the provider's side anyway.
         return []
+
+    def net_listening(self) -> bool:
+        # That's what a real provider would return.
+        return True
