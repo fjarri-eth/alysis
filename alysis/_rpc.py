@@ -6,6 +6,7 @@ from ethereum_rpc import (
     Address,
     Block,
     BlockHash,
+    BlockInfo,
     EstimateGasParams,
     EthCallParams,
     FilterParams,
@@ -20,6 +21,8 @@ from ethereum_rpc import (
 
 from ._exceptions import (
     BlockNotFound,
+    FilterNotFound,
+    IndexNotFound,
     TransactionFailed,
     TransactionNotFound,
     TransactionReverted,
@@ -38,6 +41,8 @@ class RPCNode:
         self.node = node
         self._methods = dict(
             net_version=self._net_version,
+            web3_clientVersion=self._web3_client_version,
+            eth_accounts=self._eth_accounts,
             eth_chainId=self._eth_chain_id,
             eth_getBalance=self._eth_get_balance,
             eth_getTransactionReceipt=self._eth_get_transaction_receipt,
@@ -58,6 +63,19 @@ class RPCNode:
             eth_getFilterChanges=self._eth_get_filter_changes,
             eth_getLogs=self._eth_get_logs,
             eth_getFilterLogs=self._eth_get_filter_logs,
+            eth_uninstallFilter=self._eth_uninstall_filter,
+            web3_sha3=self._web3_sha3,
+            net_listening=self._net_listening,
+            net_peerCount=self._net_peer_count,
+            eth_coinbase=self._eth_coinbase,
+            eth_getBlockTransactionCountByHash=self._eth_get_block_transaction_count_by_hash,
+            eth_getBlockTransactionCountByNumber=self._eth_get_block_transaction_count_by_number,
+            eth_getUncleCountByBlockHash=self._eth_get_uncle_count_by_block_hash,
+            eth_getUncleCountByBlockNumber=self._eth_get_uncle_count_by_block_number,
+            eth_getTransactionByBlockHashAndIndex=self._eth_get_transaction_by_block_hash_and_index,
+            eth_getTransactionByBlockNumberAndIndex=self._eth_get_transaction_by_block_number_and_index,
+            eth_getUncleByBlockHashAndIndex=self._eth_get_uncle_by_block_hash_and_index,
+            eth_getUncleByBlockNumberAndIndex=self._eth_get_uncle_by_block_number_and_index,
         )
 
     def rpc(self, method_name: str, *params: JSON) -> JSON:
@@ -76,6 +94,10 @@ class RPCNode:
         except (BlockNotFound, TransactionNotFound) as exc:
             # If we didn't process it earlier, it's a SERVER_ERROR
             raise RPCError.with_code(RPCErrorCode.SERVER_ERROR, str(exc)) from exc
+
+        except (FilterNotFound, IndexNotFound) as exc:
+            # That's what the providers seem to return.
+            raise RPCError.with_code(RPCErrorCode.METHOD_NOT_FOUND, str(exc)) from exc
 
         except (StructuringError, ValidationError) as exc:
             raise RPCError.with_code(RPCErrorCode.INVALID_PARAMETER, str(exc)) from exc
@@ -110,6 +132,10 @@ class RPCNode:
         _ = structure(tuple[()], params)
         # Note: it's not hex encoded, but just stringified!
         return str(self.node.net_version())
+
+    def _web3_client_version(self, params: tuple[JSON, ...]) -> JSON:
+        _ = structure(tuple[()], params)
+        return self.node.web3_client_version()
 
     def _eth_chain_id(self, params: tuple[JSON, ...]) -> JSON:
         _ = structure(tuple[()], params)
@@ -213,3 +239,69 @@ class RPCNode:
     def _eth_get_logs(self, params: tuple[JSON, ...]) -> JSON:
         (typed_params,) = structure(tuple[FilterParams | FilterParamsEIP234], params)
         return unstructure(self.node.eth_get_logs(typed_params), list[LogEntry])
+
+    def _eth_uninstall_filter(self, params: tuple[JSON, ...]) -> JSON:
+        (filter_id,) = structure(tuple[int], params)
+        # Unlike other filter operations, a non-existent filter does not cause an error.
+        try:
+            self.node.eth_uninstall_filter(filter_id)
+            result = True
+        except FilterNotFound:
+            result = False
+        return unstructure(result)
+
+    def _eth_accounts(self, params: tuple[JSON, ...]) -> JSON:
+        _ = structure(tuple[()], params)
+        return unstructure(self.node.eth_accounts(), list[Address])
+
+    def _web3_sha3(self, params: tuple[JSON, ...]) -> JSON:
+        (data,) = structure(tuple[bytes], params)
+        return unstructure(self.node.web3_sha3(data))
+
+    def _net_listening(self, params: tuple[JSON, ...]) -> JSON:
+        _ = structure(tuple[()], params)
+        return unstructure(self.node.net_listening())
+
+    def _net_peer_count(self, params: tuple[JSON, ...]) -> JSON:
+        _ = structure(tuple[()], params)
+        return unstructure(self.node.net_peer_count())
+
+    def _eth_coinbase(self, params: tuple[JSON, ...]) -> JSON:
+        _ = structure(tuple[()], params)
+        return unstructure(self.node.eth_coinbase())
+
+    def _eth_get_block_transaction_count_by_hash(self, params: tuple[JSON, ...]) -> JSON:
+        (block_hash,) = structure(tuple[BlockHash], params)
+        return unstructure(self.node.eth_get_block_transaction_count_by_hash(block_hash))
+
+    def _eth_get_block_transaction_count_by_number(self, params: tuple[JSON, ...]) -> JSON:
+        (block,) = structure(tuple[Block], params)
+        return unstructure(self.node.eth_get_block_transaction_count_by_number(block))
+
+    def _eth_get_uncle_count_by_block_hash(self, params: tuple[JSON, ...]) -> JSON:
+        (block_hash,) = structure(tuple[BlockHash], params)
+        return unstructure(self.node.eth_get_uncle_count_by_block_hash(block_hash))
+
+    def _eth_get_uncle_count_by_block_number(self, params: tuple[JSON, ...]) -> JSON:
+        (block,) = structure(tuple[Block], params)
+        return unstructure(self.node.eth_get_uncle_count_by_block_number(block))
+
+    def _eth_get_transaction_by_block_hash_and_index(self, params: tuple[JSON, ...]) -> JSON:
+        (block_hash, index) = structure(tuple[BlockHash, int], params)
+        return unstructure(self.node.eth_get_transaction_by_block_hash_and_index(block_hash, index))
+
+    def _eth_get_transaction_by_block_number_and_index(self, params: tuple[JSON, ...]) -> JSON:
+        (block, index) = structure(tuple[Block, int], params)
+        return unstructure(self.node.eth_get_transaction_by_block_number_and_index(block, index))
+
+    def _eth_get_uncle_by_block_hash_and_index(self, params: tuple[JSON, ...]) -> JSON:
+        (block_hash, index) = structure(tuple[BlockHash, int], params)
+        return unstructure(
+            self.node.eth_get_uncle_by_block_hash_and_index(block_hash, index), BlockInfo | None
+        )
+
+    def _eth_get_uncle_by_block_number_and_index(self, params: tuple[JSON, ...]) -> JSON:
+        (block, index) = structure(tuple[Block, int], params)
+        return unstructure(
+            self.node.eth_get_uncle_by_block_number_and_index(block, index), BlockInfo | None
+        )

@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 
 from ethereum_rpc import (
     Address,
@@ -16,11 +16,12 @@ from ethereum_rpc import (
     TxHash,
     TxInfo,
     TxReceipt,
+    keccak,
 )
 
 from ._backend import PyEVMBackend
 from ._constants import EVMVersion
-from ._exceptions import FilterNotFound, ValidationError
+from ._exceptions import FilterNotFound, IndexNotFound, ValidationError
 
 
 class LogFilter:
@@ -207,6 +208,12 @@ class Node:
         """Returns the current network id."""
         return self._net_version
 
+    def web3_client_version(self) -> str:
+        return "Alysis testerchain"
+
+    def web3_sha3(self, data: bytes) -> bytes:
+        return keccak(data)
+
     def eth_chain_id(self) -> int:
         """Returns the chain ID used for signing replay-protected transactions."""
         return self._backend.chain_id
@@ -370,7 +377,7 @@ class Node:
         elif filter_id in self._log_filters:
             del self._log_filters[filter_id]
         else:
-            raise FilterNotFound("Unknown filter id")
+            raise FilterNotFound(f"Unknown filter id: {filter_id}")
 
     def eth_get_filter_changes(
         self, filter_id: int
@@ -399,7 +406,7 @@ class Node:
             self._log_filter_entries[filter_id] = []
             return log_entries
 
-        raise FilterNotFound("Unknown filter id")
+        raise FilterNotFound(f"Unknown filter id: {filter_id}")
 
     def _get_logs(self, log_filter: LogFilter) -> list[LogEntry]:
         entries = []
@@ -434,6 +441,85 @@ class Node:
         if filter_id in self._log_filters:
             log_filter = self._log_filters[filter_id]
         else:
-            raise FilterNotFound("Unknown filter id")
+            raise FilterNotFound(f"Unknown filter id: {filter_id}")
 
         return self._get_logs(log_filter)
+
+    def eth_uninstall_filter(self, filter_id: int) -> None:
+        if filter_id in self._log_filters:
+            del self._log_filters[filter_id]
+            return
+        if filter_id in self._block_filters:
+            del self._block_filters[filter_id]
+            return
+        if filter_id in self._pending_transaction_filters:
+            del self._pending_transaction_filters[filter_id]
+            return
+        raise FilterNotFound(f"Unknown filter id: {filter_id}")
+
+    def eth_accounts(self) -> list[Address]:
+        # Returning an empty list allows us to not implement the related methods
+        # (eth_sign, eth_signTransaction, eth_sendTransaction).
+        #
+        # It is generally not a good idea to keep private keys on the provider's side anyway.
+        return []
+
+    def net_listening(self) -> bool:
+        # That's what a real provider would return.
+        return True
+
+    def net_peer_count(self) -> int:
+        # Returning a non-zero number in case there's some application
+        # that uses it to test the provider's liveness or something.
+        return 42
+
+    def eth_coinbase(self) -> Address:
+        return self._backend.coinbase
+
+    def eth_get_block_transaction_count_by_hash(self, block_hash: BlockHash) -> int:
+        return len(self.eth_get_block_by_hash(block_hash, with_transactions=False).transactions)
+
+    def eth_get_block_transaction_count_by_number(self, block: Block) -> int:
+        return len(self.eth_get_block_by_number(block, with_transactions=False).transactions)
+
+    def eth_get_uncle_count_by_block_hash(self, block_hash: BlockHash) -> int:
+        return len(self.eth_get_block_by_hash(block_hash, with_transactions=False).uncles)
+
+    def eth_get_uncle_count_by_block_number(self, block: Block) -> int:
+        return len(self.eth_get_block_by_number(block, with_transactions=False).uncles)
+
+    def eth_get_transaction_by_block_hash_and_index(
+        self, block_hash: BlockHash, index: int
+    ) -> TxInfo:
+        block_info = self.eth_get_block_by_hash(block_hash, with_transactions=True)
+        if index < 0 or index >= len(block_info.transactions):
+            raise IndexNotFound(
+                f"{len(block_info.transactions)} transactions available, requested index {index}"
+            )
+        # Can cast here since we requested a block with transactions above
+        return cast("TxInfo", block_info.transactions[index])
+
+    def eth_get_transaction_by_block_number_and_index(self, block: Block, index: int) -> TxInfo:
+        block_info = self.eth_get_block_by_number(block, with_transactions=True)
+        if index < 0 or index >= len(block_info.transactions):
+            raise IndexNotFound(
+                f"{len(block_info.transactions)} transactions available, requested index {index}"
+            )
+        # Can cast here since we requested a block with transactions above
+        return cast("TxInfo", block_info.transactions[index])
+
+    def eth_get_uncle_by_block_hash_and_index(
+        self, block_hash: BlockHash, index: int
+    ) -> BlockInfo | None:
+        block_info = self.eth_get_block_by_hash(block_hash, with_transactions=False)
+        if index < 0 or index >= len(block_info.uncles):
+            # Following the behavior of the providers
+            return None
+        return self.eth_get_block_by_hash(block_info.uncles[index], with_transactions=False)
+
+    def eth_get_uncle_by_block_number_and_index(self, block: Block, index: int) -> BlockInfo | None:
+        block_info = self.eth_get_block_by_number(block, with_transactions=False)
+        if index < 0 or index >= len(block_info.uncles):
+            # Following the behavior of the providers
+            return None
+        return self.eth_get_block_by_hash(block_info.uncles[index], with_transactions=False)

@@ -1,6 +1,21 @@
 Changelog
 =========
 
+
+0.6.3 (in development)
+----------------------
+
+Added
+^^^^^
+
+- ``eth_accounts``, ``web3_clientVersion``, ``net_listening``, ``net_peerCount``, ``eth_coinbase``, ``eth_uninstallFilter``, ``eth_getBlockTransactionCountByHash``, ``eth_getBlockTransactionCountByNumber``, ``eth_getUncleCountByBlockHash``, ``eth_getUncleCountByBlockNumber``, ``eth_getTransactionByBlockHashAndIndex``, ``eth_getTransactionByBlockNumberAndIndexdex``, ``eth_getUncleByBlockHashAndIndex``, ``eth_getUncleByBlockNumberAndIndex``. (PR_29_)
+- ``IndexNotFound`` exception. (PR_29_)
+
+
+.. _PR_29: https://github.com/fjarri/compages/pull/29
+
+
+
 0.6.2 (2025-19-10)
 ------------------
 

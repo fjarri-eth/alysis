@@ -15,3 +15,30 @@ def test_eth_get_balance(rpc_node, root_account, another_account):
 
     result = rpc_node.rpc("eth_getBalance", another_account.address, "latest")
     assert result == hex(10**9)
+
+
+def test_eth_accounts(rpc_node):
+    assert rpc_node.rpc("eth_accounts") == []
+
+
+def test_web3_client_version(rpc_node):
+    assert rpc_node.rpc("web3_clientVersion") == "Alysis testerchain"
+
+
+def test_web3_sha3(rpc_node):
+    assert (
+        rpc_node.rpc("web3_sha3", "0x68656c6c6f20776f726c64")
+        == "0x47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad"
+    )
+
+
+def test_net_listening(rpc_node):
+    assert rpc_node.rpc("net_listening")
+
+
+def test_net_peer_count(rpc_node):
+    assert rpc_node.rpc("net_peerCount") == hex(42)
+
+
+def test_eth_coinbase(rpc_node):
+    assert rpc_node.rpc("eth_coinbase") == "0x" + (20 * b"\x00").hex()
